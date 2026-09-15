@@ -1,0 +1,68 @@
+:root {
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Blue accent */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: #dbeafe;
+  --accent-muted: #93c5fd;
+
+  /* Light theme */
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f1f5f9;
+  --bg-active: #e2e8f0;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  /* Status */
+  --online: #22c55e;
+  --offline: #94a3b8;
+  --danger: #ef4444;
+  --danger-bg: #fef2f2;
+  --warning: #f59e0b;
+  --success: #22c55e;
+
+  /* Chat type colors */
+  --type-channel: #8b5cf6;
+  --type-group: #2563eb;
+  --type-direction: #0891b2;
+  --type-course: #059669;
+  --type-flood: #f59e0b;
+  --type-dm: #ec4899;
+
+  /* Layout */
+  --topbar-h: 56px;
+  --sidebar-w: 320px;
+  --info-w: 300px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --max-w: 1440px;
+}
+
+[data-theme="dark"] {
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-light: #1e3a5f;
+  --accent-muted: #2563eb;
+
+  --bg: #0f172a;
+  --bg-elevated: #1e293b;
+  --bg-hover: #334155;
+  --bg-active: #475569;
+  --border: #334155;
+  --border-strong: #475569;
+  --text: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  --danger-bg: #450a0a;
+}
