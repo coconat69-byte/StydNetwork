@@ -36,7 +36,7 @@ const API = {
     return null;
   },
 
-  // ── Auth ──────────────────────────────────────────
+  // ── Авторизация ──────────────────────────────────────────
   async loginByCode(code) {
     // return this.request('/auth/login', { method: 'POST', body: JSON.stringify({ code }) });
     const normalized = code.trim();
@@ -49,7 +49,7 @@ const API = {
     return { success: true, user };
   },
 
-  // ── Users ─────────────────────────────────────────
+  // ── Пользователи ─────────────────────────────────────────
   async getUsers(filters = {}) {
     // return this.request(`/users?${new URLSearchParams(filters)}`);
     let users = [...MOCK_DATA.users];
@@ -60,22 +60,25 @@ const API = {
     return users;
   },
 
+  // ── Получение пользователя ─────────────────────────────────────────
   async getUser(id) {
     // return this.request(`/users/${id}`);
     return MOCK_DATA.users.find(u => u.id === id) || null;
   },
 
-  // ── Chats ─────────────────────────────────────────
+  // ── Чаты ─────────────────────────────────────────
   async getChats(userId) {
     // return this.request(`/chats?userId=${userId}`);
     return MOCK_DATA.chats;
   },
 
+  // ── Сообщения ─────────────────────────────────────────
   async getMessages(chatId) {
     // return this.request(`/chats/${chatId}/messages`);
     return MOCK_DATA.messages[chatId] || [];
   },
 
+  // ── Отправка сообщения ─────────────────────────────────────────
   async sendMessage(chatId, userId, text, userRole) {
     // return this.request(`/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ userId, text }) });
     const chat = MOCK_DATA.chats.find(c => c.id === chatId);
@@ -98,34 +101,37 @@ const API = {
     return msg;
   },
 
-  // ── Clubs ─────────────────────────────────────────
+  // ── Клубы ─────────────────────────────────────────
   async getClubs() {
     // return this.request('/clubs');
     return MOCK_DATA.clubs;
   },
 
+  // ── Получение клуба ─────────────────────────────────────────
   async getClub(id) {
     // return this.request(`/clubs/${id}`);
     return MOCK_DATA.clubs.find(c => c.id === id) || null;
   },
 
-  // ── Admin ─────────────────────────────────────────
+  // ── Админ-панель ─────────────────────────────────────────
   async getAdminStats() {
     // return this.request('/admin/stats');
     return MOCK_DATA.adminStats;
   },
 
+  // ── Получение пользователей для админ-панели ─────────────────────────────────────────
   async getAdminUsers() {
     // return this.request('/admin/users');
     return MOCK_DATA.users;
   },
 
-  // ── Reference data ────────────────────────────────
+  // ── Справочные данные ────────────────────────────────
   async getGroups() {
     // return this.request('/ref/groups');
     return MOCK_DATA.groups;
   },
 
+  // ── Получение направлений ─────────────────────────────────────────
   async getDirections() {
     // return this.request('/ref/directions');
     return MOCK_DATA.directions;

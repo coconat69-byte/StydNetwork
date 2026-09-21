@@ -1,4 +1,4 @@
-/* Logo */
+/* Логотип */
 .logo {
   display: flex;
   align-items: center;
@@ -32,7 +32,7 @@
   padding: 0;
 }
 
-/* Buttons */
+/* Кнопки */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -97,7 +97,7 @@
   height: 28px;
 }
 
-/* Form fields */
+/* Поля формы */
 .field {
   display: flex;
   flex-direction: column;
@@ -143,7 +143,7 @@
   accent-color: var(--accent);
 }
 
-/* Avatar */
+/* Аватар */
 .avatar {
   border-radius: 50%;
   object-fit: cover;
@@ -179,7 +179,7 @@
   border-color: var(--accent-muted);
 }
 
-/* Status dot */
+/* Ярлык статуса */
 .status-dot {
   width: 10px;
   height: 10px;
@@ -192,7 +192,7 @@
   background: var(--online);
 }
 
-/* Badge */
+/* Ярлык */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -216,7 +216,7 @@
   justify-content: center;
 }
 
-/* Chat type tag */
+/* Ярлык типа чата */
 .chat-type {
   font-size: 0.7rem;
   font-weight: 600;
@@ -233,7 +233,7 @@
 .chat-type--flood { background: color-mix(in srgb, var(--type-flood) 15%, transparent); color: var(--type-flood); }
 .chat-type--dm { background: color-mix(in srgb, var(--type-dm) 15%, transparent); color: var(--type-dm); }
 
-/* Tags / interests */
+/* Теги / интересы */
 .tag {
   display: inline-block;
   padding: 4px 10px;
@@ -250,7 +250,7 @@
   gap: 8px;
 }
 
-/* Reactions */
+/* Реакции */
 .reactions {
   display: flex;
   flex-wrap: wrap;
@@ -277,7 +277,7 @@
   border-color: var(--accent-muted);
 }
 
-/* Card */
+/* Карточка */
 .card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -295,7 +295,7 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Empty state */
+/* Пустое состояние */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -307,7 +307,7 @@
   text-align: center;
 }
 
-/* Stat */
+/* Статистика */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -333,7 +333,7 @@
   margin-top: 4px;
 }
 
-/* Table */
+/* Таблица */
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);

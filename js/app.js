@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  // ── State ─────────────────────────────────────────
+  // ── Состояние ─────────────────────────────────────────
   const state = {
     currentUser: null,
     currentScreen: 'auth',
@@ -18,11 +18,11 @@
     theme: localStorage.getItem('studnet-theme') || 'light',
   };
 
-  // ── DOM refs ──────────────────────────────────────
+  // ── DOM элементы ──────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
 
-  // ── Init ──────────────────────────────────────────
+  // ── Инициализация ──────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
@@ -58,34 +58,34 @@
     });
   }
 
-  // ── Events ────────────────────────────────────────
+  // ── События ────────────────────────────────────────
   function bindEvents() {
     $('#form-login').addEventListener('submit', handleLogin);
 
-    // Theme
+    // Тема
     $('#theme-toggle').addEventListener('click', toggleTheme);
 
-    // Navigation
+    // Навигация
     $$('[data-nav]').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
     });
 
-    // Chat filters
+    // Фильтры чатов
     // rendered dynamically
 
-    // Send message
+    // Отправка сообщения
     $('#send-message').addEventListener('click', sendMessage);
     $('#message-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') sendMessage();
     });
 
-    // Search filters
+    // Фильтры поиска
     ['#filter-group', '#filter-direction', '#filter-course', '#filter-online'].forEach(sel => {
       $(sel)?.addEventListener('change', renderSearchResults);
     });
     $('#reset-filters')?.addEventListener('click', resetSearchFilters);
 
-    // Settings nav
+    // Настройки
     $$('[data-settings]').forEach(btn => {
       btn.addEventListener('click', () => {
         if (btn.dataset.settings === 'logout') { handleLogout(); return; }
@@ -95,7 +95,7 @@
       });
     });
 
-    // Admin nav
+    // Админ-панель
     $$('[data-admin]').forEach(btn => {
       btn.addEventListener('click', () => {
         state.adminTab = btn.dataset.admin;
@@ -104,7 +104,7 @@
       });
     });
 
-    // Clubs tabs
+    // Клубы
     $$('[data-clubs-view]').forEach(btn => {
       btn.addEventListener('click', () => {
         state.clubsView = btn.dataset.clubsView;
@@ -120,7 +120,7 @@
     });
   }
 
-  // ── Auth ──────────────────────────────────────────
+  // ── Авторизация ──────────────────────────────────────────
   async function handleLogin(e) {
     e.preventDefault();
     const code = $('#login-code').value.trim();
@@ -161,7 +161,7 @@
     renderSettings();
   }
 
-  // ── Navigation ────────────────────────────────────
+  // ── Навигация ────────────────────────────────────
   function navigate(screen) {
     if (!state.currentUser) return;
     state.currentScreen = screen;
@@ -181,7 +181,7 @@
     if (screen === 'admin') renderAdmin();
   }
 
-  // ── Theme ─────────────────────────────────────────
+  // ── Тема ─────────────────────────────────────────
   function toggleTheme() {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
     applyTheme(state.theme);
@@ -192,7 +192,7 @@
     document.documentElement.dataset.theme = theme;
   }
 
-  // ── Chats ─────────────────────────────────────────
+  // ── Чаты ─────────────────────────────────────────
   function renderChatFilters() {
     const container = $('#chat-type-filters');
     const types = [{ key: 'all', label: 'Все' }, ...Object.entries(MOCK_DATA.chatTypes).map(([key, val]) => ({ key, label: val.label }))];
@@ -210,6 +210,7 @@
     });
   }
 
+  // ── Список чатов ─────────────────────────────────────────
   function renderChatList() {
     const container = $('#chat-list');
     let chats = MOCK_DATA.chats;
@@ -253,6 +254,7 @@
     }
   }
 
+  // ── Выбор чата ─────────────────────────────────────────
   async function selectChat(chatId) {
     state.activeChatId = chatId;
     const chat = MOCK_DATA.chats.find(c => c.id === chatId);
@@ -273,6 +275,7 @@
     renderChatInfo(chat);
   }
 
+  // ── Сообщения ─────────────────────────────────────────
   function renderMessages(messages, chat) {
     const container = $('#chat-messages');
     const currentUserId = state.currentUser?.id;
@@ -305,6 +308,7 @@
     container.scrollTop = container.scrollHeight;
   }
 
+  // ── Информация о чате ─────────────────────────────────────────
   function renderChatInfo(chat) {
     const empty = $('.chat-info__empty');
     const content = $('#chat-info-content');
@@ -345,12 +349,14 @@
     });
   }
 
+  // ── Можно ли писать в чат ─────────────────────────────────────────
   function canWriteInChat(chat) {
     const typeInfo = MOCK_DATA.chatTypes[chat.type];
     if (!typeInfo.readonly) return true;
     return state.currentUser?.role === 'teacher';
   }
 
+  // ── Обновление ввода в чат ─────────────────────────────────────────
   function updateChatInput(canWrite, chatType) {
     const area = $('#chat-input-area');
     const notice = $('#chat-readonly-notice');
@@ -376,6 +382,7 @@
     }
   }
 
+  // ── Отправка сообщения ─────────────────────────────────────────
   async function sendMessage() {
     const input = $('#message-input');
     const text = input.value.trim();
@@ -397,7 +404,7 @@
     renderMessages(messages, chat);
   }
 
-  // ── Profile ───────────────────────────────────────
+  // ── Профиль ───────────────────────────────────────
   function renderProfile(userId) {
     const user = MOCK_DATA.users.find(u => u.id === userId);
     if (!user) return;
@@ -439,7 +446,7 @@
     });
   }
 
-  // ── Search ────────────────────────────────────────
+  // ── Поиск ────────────────────────────────────────
   async function renderSearchResults() {
     const filters = {
       group: $('#filter-group').value,
@@ -487,6 +494,7 @@
     });
   }
 
+  // ── Сброс фильтров поиска ─────────────────────────────────────────
   function resetSearchFilters() {
     $('#filter-group').value = '';
     $('#filter-direction').value = '';
@@ -495,7 +503,7 @@
     renderSearchResults();
   }
 
-  // ── Clubs ─────────────────────────────────────────
+  // ── Клубы ─────────────────────────────────────────
   function renderClubs() {
     if (state.selectedClubId) {
       renderClubDetail(state.selectedClubId);
@@ -532,6 +540,7 @@
     });
   }
 
+  // ── Подробная информация о клубе ─────────────────────────────────────────
   function renderClubDetail(clubId) {
     const club = MOCK_DATA.clubs.find(c => c.id === clubId);
     if (!club) return;
@@ -633,7 +642,7 @@
     });
   }
 
-  // ── Settings ──────────────────────────────────────
+  // ── Настройки ──────────────────────────────────────
   function renderSettings() {
     const user = state.currentUser;
     if (!user) return;
@@ -708,7 +717,7 @@
     `;
   }
 
-  // ── Admin ─────────────────────────────────────────
+  // ── Админ-панель ─────────────────────────────────────────
   async function renderAdmin() {
     const stats = await API.getAdminStats();
     const users = await API.getAdminUsers();

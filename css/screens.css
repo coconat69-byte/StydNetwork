@@ -1,4 +1,4 @@
-/* ========== AUTH ========== */
+/* ========== Экран авторизации ========== */
 .auth-layout {
   display: grid;
   grid-template-columns: 1fr 420px;
@@ -122,7 +122,7 @@
   display: none;
 }
 
-/* ========== TOPBAR ========== */
+/* ========== Шапка приложения ========== */
 .topbar {
   height: var(--topbar-h);
   display: flex;
@@ -197,7 +197,7 @@
   flex: 1;
 }
 
-/* ========== CHAT LAYOUT (3 columns) ========== */
+/* ========== Макет 3-колоночного чата ========== */
 .chat-layout {
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr var(--info-w);
@@ -324,7 +324,7 @@
   margin-top: 4px;
 }
 
-/* Chat main */
+/* Главный чат */
 .chat-main {
   display: flex;
   flex-direction: column;
@@ -463,7 +463,7 @@
   border-color: var(--accent);
 }
 
-/* Chat info panel */
+/* Панель информации о чате */
 .chat-info {
   border-left: 1px solid var(--border);
   background: var(--bg-elevated);
@@ -543,7 +543,7 @@
   color: var(--text-muted);
 }
 
-/* ========== PROFILE ========== */
+/* ========== Профиль ========== */
 .profile-layout {
   max-width: 720px;
   margin: 0 auto;
@@ -593,7 +593,7 @@
   margin-bottom: 12px;
 }
 
-/* ========== SEARCH ========== */
+/* ========== Поиск ========== */
 .search-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -670,7 +670,7 @@
   margin-top: 16px;
 }
 
-/* ========== CLUBS ========== */
+/* ========== Клубы ========== */
 .clubs-layout {
   height: calc(100vh - var(--topbar-h));
   overflow-y: auto;
@@ -856,7 +856,7 @@
   overflow-y: auto;
 }
 
-/* ========== SETTINGS ========== */
+/* ========== Настройки ========== */
 .settings-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -1003,7 +1003,7 @@
   border: 1px solid #334155;
 }
 
-/* ========== ADMIN ========== */
+/* ========== Админ-панель ========== */
 .admin-layout {
   display: grid;
   grid-template-columns: 240px 1fr;

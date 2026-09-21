@@ -1,13 +1,13 @@
 :root {
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Blue accent */
+  /* Синий акцент */
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-light: #dbeafe;
   --accent-muted: #93c5fd;
 
-  /* Light theme */
+  /* Светлая тема */
   --bg: #f8fafc;
   --bg-elevated: #ffffff;
   --bg-hover: #f1f5f9;
@@ -20,7 +20,7 @@
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
 
-  /* Status */
+  /* Статусы */
   --online: #22c55e;
   --offline: #94a3b8;
   --danger: #ef4444;
@@ -28,7 +28,7 @@
   --warning: #f59e0b;
   --success: #22c55e;
 
-  /* Chat type colors */
+  /* Цвета типов чатов */
   --type-channel: #8b5cf6;
   --type-group: #2563eb;
   --type-direction: #0891b2;
@@ -36,7 +36,7 @@
   --type-flood: #f59e0b;
   --type-dm: #ec4899;
 
-  /* Layout */
+  /* Макет */
   --topbar-h: 56px;
   --sidebar-w: 320px;
   --info-w: 300px;
