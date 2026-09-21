@@ -18,6 +18,8 @@
     theme: localStorage.getItem('studnet-theme') || 'light',
   };
 
+  const SESSION_KEY = 'studnet-user-id';
+
   // ── DOM элементы ──────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
@@ -29,7 +31,26 @@
     applyTheme(state.theme);
     populateSelects();
     bindEvents();
-    lockAuth(true);
+
+    const savedUser = restoreSession();
+    if (savedUser) {
+      state.currentUser = savedUser;
+      enterApp();
+    } else {
+      lockAuth(true);
+    }
+  }
+
+  function restoreSession() {
+    const raw = localStorage.getItem(SESSION_KEY);
+    const id = Number(raw);
+    if (!id) return null;
+    return MOCK_DATA.users.find(u => u.id === id) || null;
+  }
+
+  function saveSession(user) {
+    if (user) localStorage.setItem(SESSION_KEY, String(user.id));
+    else localStorage.removeItem(SESSION_KEY);
   }
 
   function lockAuth(locked) {
@@ -127,6 +148,7 @@
     const result = await API.loginByCode(code);
     if (result.success) {
       state.currentUser = result.user;
+      saveSession(result.user);
       enterApp();
     } else {
       alert(result.error || 'Ошибка входа');
@@ -136,6 +158,7 @@
   function handleLogout() {
     state.currentUser = null;
     state.activeChatId = null;
+    saveSession(null);
     lockAuth(true);
     $('#screen-auth').classList.add('screen--active');
     $$('#app-shell .screen').forEach(s => s.classList.remove('screen--active'));
