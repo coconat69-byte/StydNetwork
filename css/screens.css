@@ -2,7 +2,9 @@
 .auth-layout {
   display: grid;
   grid-template-columns: 1fr 420px;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
 .auth-brand {
@@ -195,13 +197,28 @@
 
 .main-content {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#app-shell .screen--active {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#app-shell .screen--active > * {
+  flex: 1;
+  min-height: 0;
 }
 
 /* ========== Макет 3-колоночного чата ========== */
 .chat-layout {
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr var(--info-w);
-  height: calc(100vh - var(--topbar-h));
+  min-height: 0;
 }
 
 .chat-sidebar {
@@ -548,6 +565,8 @@
   max-width: 720px;
   margin: 0 auto;
   padding: 40px 24px;
+  overflow-y: auto;
+  width: 100%;
 }
 
 .profile-header {
@@ -597,7 +616,7 @@
 .search-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
-  height: calc(100vh - var(--topbar-h));
+  min-height: 0;
 }
 
 .search-filters {
@@ -672,7 +691,7 @@
 
 /* ========== Клубы ========== */
 .clubs-layout {
-  height: calc(100vh - var(--topbar-h));
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -860,7 +879,7 @@
 .settings-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
-  height: calc(100vh - var(--topbar-h));
+  min-height: 0;
 }
 
 .settings-nav {
@@ -1007,7 +1026,7 @@
 .admin-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
-  height: calc(100vh - var(--topbar-h));
+  min-height: 0;
 }
 
 .admin-nav {

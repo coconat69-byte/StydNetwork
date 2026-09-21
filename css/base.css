@@ -47,11 +47,15 @@ img {
   max-width: var(--max-w);
   margin: 0 auto;
   min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .screen {
   display: none;
-  min-height: calc(100vh - var(--topbar-h));
+  min-height: 0;
 }
 
 .screen--active {
@@ -59,9 +63,11 @@ img {
 }
 
 #screen-auth.screen--active {
-  min-height: 100vh;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-shell {
@@ -71,7 +77,8 @@ img {
 .app-shell--visible {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
 }
 
 .icon {

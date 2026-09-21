@@ -368,3 +368,26 @@ tr:last-child td {
 tr:hover td {
   background: var(--bg-hover);
 }
+
+/* Футер сайта */
+.site-footer {
+  flex-shrink: 0;
+  padding: 16px 24px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.site-footer p + p {
+  margin-top: 8px;
+}
+
+.site-footer__authors {
+  margin-top: 10px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
