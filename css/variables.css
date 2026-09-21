@@ -44,6 +44,11 @@
   --radius-sm: 6px;
   --radius-lg: 14px;
   --max-w: 1440px;
+
+  --scrollbar-size: 8px;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
 }
 
 [data-theme="dark"] {
@@ -65,4 +70,8 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
 
   --danger-bg: #450a0a;
+
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
 }
