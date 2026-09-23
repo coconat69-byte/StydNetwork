@@ -22,16 +22,16 @@ const MOCK_DATA = {
   users: [
     {
       id: 1,
-      name: 'Владислав Рагериков',
-      email: 'koragura@oatk.ru',
+      name: 'Яша Кузнецов',
+      email: 'yasha.kuznetsov@oatk.ru',
       avatar: 'images/RagerikAvatar.png',
       group: 'ИСП341',
       direction: 'Информационные системы и программирование',
-      course: 3,
-      interests: ['Java', 'Веб', 'Паста'],
+      course: 1,
+      interests: ['Python', 'Веб-разработка', 'Java'],
       online: true,
       role: 'student',
-      bio: 'Третий курс ИСиП. Пишу на Java, верстаю лендинги и иногда помогаю одногруппникам с лабами.',
+      bio: 'Первый курс ИСиП. Пишу на Python, Java, верстаю лендинги и иногда помогаю одногруппникам с лабами.',
     },
     {
       id: 2,
