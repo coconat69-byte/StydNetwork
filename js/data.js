@@ -40,7 +40,7 @@ const MOCK_DATA = {
       avatar: 'images/IgorAvatar.jpg',
       group: 'ИСП341',
       direction: 'Информационные системы и программирование',
-      course: 31,
+      course: 3,
       interests: ['Дизайн', 'Кодинг', 'Автомеханика'],
       online: true,
       role: 'student',
@@ -325,7 +325,7 @@ const MOCK_DATA = {
       members: 124,
       description: 'Общий чат направления «Информационные системы и программирование».',
       unread: 0,
-      lastMessage: 'Ольга: Материалы к занятию выложены',
+      lastMessage: 'Вы: Спасибо!',
       lastTime: '09:20',
     },
     {
