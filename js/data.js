@@ -47,17 +47,17 @@ const MOCK_DATA = {
       "bio": "Первый курс ИСиП. Пишу на Python, Java, верстаю лендинги и иногда помогаю одногруппникам с лабами."
     },
     {
-      "id": 2,
-      "name": "Игорь Ефремов",
-      "email": "wraphWFXbetter@oatk.ru",
-      "avatar": "images/IgorAvatar.jpg",
-      "group": "ИСП341",
-      "direction": "Информационные системы и программирование",
-      "course": 3,
-      "interests": ["Дизайн","Кодинг","Автомеханика"],
-      "online": true,
-      "role": "student",
-      "bio": "Учусь на ИСиП, третий курс. Занимаюсь дизайном, кодингом и кручу гаечки в гараже."
+      id: 2,
+      name: 'Игорь Ефремов',
+      email: 'wraphWFXbetter@oatk.ru',
+      avatar: 'images/IgorAvatar.jpg',
+      group: 'ИСП341',
+      direction: 'Информационные системы и программирование',
+      course: 3,
+      interests: ['Дизайн', 'Кодинг', 'Автомеханика'],
+      online: true,
+      role: 'student',
+      bio: 'Учусь на ИСиП, третий курс. Занимаюсь дизайном, кодингом и кручу гаечки в гараже.',
     },
     {
       "id": 3,
