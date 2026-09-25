@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="light">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1440">
   <title>СтудСеть — соцсеть колледжа</title>
+  <script>
+    // Выполняется до отрисовки: сразу ставим тему и нужный экран, чтобы ничего не мигало.
+    // Токен входа лежит в sessionStorage (см. js/api.js): переживает обновление страницы,
+    // но стирается при закрытии вкладки — тогда снова нужен код.
+    document.documentElement.dataset.theme = localStorage.getItem('studnet-theme') || 'light';
+    if (sessionStorage.getItem('studnet-token')) document.documentElement.classList.add('logged-in');
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,9 +21,9 @@
 </head>
 <body>
   <div id="app" class="app">
-        <!-- авторы: Ефремов И.И. и Беляев М.А. -->
+    <!-- авторы: Ефремов И.И. и Беляев М.А. -->
     <!-- ==========  Экран авторизации ========== -->
-    <section id="screen-auth" class="screen screen--active">
+    <section id="screen-auth">
       <div class="auth-layout">
         <aside class="auth-brand">
           <div class="logo logo--large">
@@ -216,7 +223,7 @@
               <button class="settings-nav__item" data-settings="notifications">Уведомления</button>
               <button class="settings-nav__item" data-settings="appearance">Внешний вид</button>
               <button class="settings-nav__item" data-settings="privacy">Приватность</button>
-              <button class="settings-nav__item settings-nav__item--danger" data-settings="logout">Выйти</button>
+              <button class="settings-nav__item settings-nav__item--danger" id="logout">Выйти</button>
             </aside>
             <div class="settings-content" id="settings-content"></div>
           </div>
@@ -238,8 +245,9 @@
           </div>
         </section>
       </main>
-    </div> 
-<!-- Футер -->
+    </div>
+
+    <!-- Футер -->
     <footer class="site-footer">
       <p>
         <strong>СтудСеть</strong> — учебный проект. Сайт создан исключительно в образовательных целях,
@@ -254,9 +262,9 @@
     </footer>
   </div>
 
-  <!-- API -->
-  <script src="js/api.js"></script>
+  <!-- data.js — данные на случай, если сервер не запущен; api.js — откуда брать данные; app.js — интерфейс -->
   <script src="js/data.js"></script>
+  <script src="js/api.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
