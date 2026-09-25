@@ -1,10 +1,10 @@
 /**
- * API — откуда интерфейс берёт данные.
+ * api.js — откуда сайт берёт данные.
  *
  * Два режима, выбираются сами:
- *  - сервер запущен (в папке back: go run .) — данные из базы SQLite через запросы /api/...;
- *  - сервера нет — данные из js/data.js (LOCAL ниже), всё работает прямо в браузере.
- *    Отправленные сообщения в этом режиме живут до обновления страницы.
+ *  - сервер запущен (в папке back: go run .) — данные из базы через запросы /api/...;
+ *  - сервера нет — данные из js/data.js (объект LOCAL ниже), всё работает прямо в браузере.
+ *    Всё, что изменили в этом режиме (сообщения, клубы), живёт до обновления страницы.
  *
  * Токен входа хранится в sessionStorage: он переживает обновление страницы,
  * но стирается при закрытии вкладки — тогда снова нужно ввести код.
@@ -20,9 +20,14 @@ const API = {
   // true — сервер не ответил, дальше сразу работаем с data.js
   offline: false,
 
+  // Текущее время в виде «12:05» — так показывается время у сообщений
+  now() {
+    return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  },
+
   // Запрос к серверу: без body — GET, с body — POST с JSON.
-  // Если сервер ответил ошибкой, бросает Error с её текстом (его можно показать пользователю).
-  // Если сервер вообще недоступен — Error с пометкой offline.
+  // Сервер ответил ошибкой — бросаем её текст (его покажем пользователю).
+  // Сервер вообще недоступен — бросаем ошибку с пометкой offline.
   async request(path, body) {
     let res, data;
     try {
@@ -56,7 +61,9 @@ const API = {
     return fromLocal();
   },
 
-  // Есть ли сохранённый токен (то есть вход уже был в этой вкладке)
+  // ── Вход и выход ──────────────────────────────────────
+
+  // Входили ли уже в этой вкладке (есть сохранённый токен)
   hasToken() {
     return !!sessionStorage.getItem(this.TOKEN_KEY);
   },
@@ -68,27 +75,32 @@ const API = {
     return user;
   },
 
-  // Выход: просим сервер забыть токен (ошибки игнорируем) и стираем его у себя
+  // Выход: просим сервер забыть токен (ошибки не важны) и стираем его у себя
   async logout() {
-    await this.call(() => this.request('/logout', {}), () => {}).catch(() => {});
+    await this.call(() => this.request('/logout', {}), () => LOCAL.logout()).catch(() => {});
     sessionStorage.removeItem(this.TOKEN_KEY);
   },
 
-  // Текущий пользователь (проверка, что токен ещё действует)
+  // Кто вошёл (заодно проверка, что токен ещё действует)
   me() {
     return this.call(() => this.request('/me'), () => LOCAL.me());
   },
 
-  // Все данные для интерфейса: пользователи, чаты, типы чатов, клубы, группы, направления
+  // Сохранить свой профиль: {name, email, bio, interests}. Возвращает обновлённого пользователя
+  updateMe(fields) {
+    return this.call(() => this.request('/me', fields), () => LOCAL.updateMe(fields));
+  },
+
+  // Включить или выключить одну настройку (key — её название, value — true/false)
+  saveSetting(key, value) {
+    return this.call(() => this.request('/settings', { key, value }), () => LOCAL.saveSetting(key, value));
+  },
+
+  // ── Данные ────────────────────────────────────────────
+
+  // Всё для интерфейса: пользователи, чаты, клубы, типы чатов, группы, направления
   data() {
-    return this.call(async () => {
-      const d = await this.request('/data');
-      // С сервера приходят списки строк таблиц — приводим к тому же виду, что в data.js
-      d.chatTypes = Object.fromEntries(d.chatTypes.map(t => [t.type, t]));
-      d.groups = d.groups.map(g => g.name);
-      d.directions = d.directions.map(g => g.name);
-      return d;
-    }, () => MOCK_DATA);
+    return this.call(() => this.request('/data'), () => LOCAL.data());
   },
 
   // Сообщения чата
@@ -96,12 +108,27 @@ const API = {
     return this.call(() => this.request(`/chats/${chatId}/messages`), () => MOCK_DATA.messages[chatId] || []);
   },
 
+  // Отметить чат прочитанным (вызывается при открытии чата)
+  markRead(chatId) {
+    return this.call(() => this.request(`/chats/${chatId}/read`, {}), () => LOCAL.markRead(chatId));
+  },
+
   // Отправить сообщение в чат
   sendMessage(chatId, text) {
     return this.call(() => this.request(`/chats/${chatId}/messages`, { text }), () => LOCAL.sendMessage(chatId, text));
   },
 
-  // Сообщения чата клуба (у каждого клуба свой чат)
+  // Личный чат с пользователем (если его ещё нет — создастся)
+  openDm(userId) {
+    return this.call(() => this.request('/dm', { userId }), () => LOCAL.openDm(userId));
+  },
+
+  // Вступить в клуб или выйти из него. Возвращает {memberIds} — новый список участников
+  toggleClub(clubId) {
+    return this.call(() => this.request(`/clubs/${clubId}/toggle`, {}), () => LOCAL.toggleClub(clubId));
+  },
+
+  // Сообщения чата клуба
   clubMessages(clubId) {
     return this.call(() => this.request(`/clubs/${clubId}/messages`), () => MOCK_DATA.clubMessages[clubId] || []);
   },
@@ -111,9 +138,36 @@ const API = {
     return this.call(() => this.request(`/clubs/${clubId}/messages`, { text }), () => LOCAL.sendClubMessage(clubId, text));
   },
 
-  // Статистика для админ-панели (только преподаватели)
+  // ── Админ-панель (только администратор) ──────────────
+
+  // Цифры для вкладки «Обзор»
   adminStats() {
-    return this.call(() => this.request('/admin/stats'), () => MOCK_DATA.adminStats);
+    return this.call(() => this.request('/admin/stats'), () => LOCAL.adminStats());
+  },
+
+  // Создать канал: {name, description}. Возвращает новый канал
+  createChannel(fields) {
+    return this.call(() => this.request('/admin/channels', fields), () => LOCAL.createChannel(fields));
+  },
+
+  // Изменить канал: {name, description}. Возвращает обновлённый канал
+  updateChannel(chatId, fields) {
+    return this.call(() => this.request(`/admin/channels/${chatId}`, fields), () => LOCAL.updateChannel(chatId, fields));
+  },
+
+  // Жалобы на пользователей
+  reports() {
+    return this.call(() => this.request('/admin/reports'), () => [...MOCK_DATA.reports].sort((a, b) => b.id - a.id));
+  },
+
+  // Отклонить жалобу
+  dismissReport(reportId) {
+    return this.call(() => this.request(`/admin/reports/${reportId}/dismiss`, {}), () => LOCAL.dismissReport(reportId));
+  },
+
+  // Заблокировать (blocked = true) или разблокировать пользователя
+  blockUser(userId, blocked) {
+    return this.call(() => this.request(`/admin/users/${userId}/block`, { blocked }), () => LOCAL.blockUser(userId, blocked));
   },
 };
 
@@ -122,19 +176,68 @@ const API = {
  * Используется, когда сервер не запущен.
  */
 const LOCAL = {
-  // Вход по коду из MOCK_DATA.accessCodes. Токен вида «local-5», где 5 — id пользователя
+  // Вход по коду из accessCodes. Токен вида «local-5», где 5 — id пользователя
   login(code) {
     const user = MOCK_DATA.users.find(u => u.id === MOCK_DATA.accessCodes[code.trim()]);
     if (!user) throw new Error('Неверный код доступа. Обратитесь в IT-отдел колледжа.');
+    if (user.blocked) throw new Error('Аккаунт заблокирован администратором.');
+    user.online = true; // вошёл — значит «в сети»
     return { token: 'local-' + user.id, user };
   },
 
-  // Пользователь по сохранённому токену
+  // Выход — больше не «в сети»
+  logout() {
+    this.me().online = false;
+  },
+
+  // Кто вошёл — по сохранённому токену
   me() {
     const token = sessionStorage.getItem(API.TOKEN_KEY) || '';
     const user = token.startsWith('local-') && MOCK_DATA.users.find(u => u.id === +token.slice(6));
-    if (!user) throw new Error('Требуется вход');
+    if (!user || user.blocked) throw new Error('Требуется вход');
+    user.online = true;
     return user;
+  },
+
+  // Сохранить свой профиль
+  updateMe({ name, email, bio, interests }) {
+    if (!name.trim()) throw new Error('Имя не может быть пустым');
+    return Object.assign(this.me(), { name: name.trim(), email: email.trim(), bio: bio.trim(), interests });
+  },
+
+  // Включить или выключить настройку
+  saveSetting(key, value) {
+    this.me()[key] = value;
+    return { ok: true };
+  },
+
+  // До какого сообщения дочитан каждый чат: {'<id человека>:<id чата>': id сообщения}
+  reads: {},
+
+  // Все данные, но личные чаты — только свои (как делает сервер).
+  // unread — сколько в чате чужих сообщений после последнего прочитанного
+  data() {
+    const me = this.me().id;
+    const chats = MOCK_DATA.chats.filter(c => c.type !== 'dm' || c.ownerId === me || c.userId === me);
+    for (const chat of chats) {
+      const lastRead = this.reads[`${me}:${chat.id}`] || 0;
+      chat.unread = (MOCK_DATA.messages[chat.id] || []).filter(m => m.userId !== me && m.id > lastRead).length;
+    }
+    // Приватность (как на сервере): другим не показываем то, что человек скрыл.
+    // Делаем копии, чтобы не испортить исходные данные
+    const users = MOCK_DATA.users.map(u => u.id === me ? u : {
+      ...u,
+      online: u.showOnline === false ? false : u.online,
+      group: u.showGroup === false ? '' : u.group,
+    });
+    return { ...MOCK_DATA, users, chats };
+  },
+
+  // Чат открыт — запоминаем его последнее сообщение как прочитанное
+  markRead(chatId) {
+    const ids = (MOCK_DATA.messages[chatId] || []).map(m => m.id);
+    this.reads[`${this.me().id}:${chatId}`] = Math.max(0, ...ids);
+    return { ok: true };
   },
 
   // Добавить сообщение в чат (в каналы пишут только преподаватели)
@@ -144,17 +247,82 @@ const LOCAL = {
     if (MOCK_DATA.chatTypes[chat.type].readonly && user.role !== 'teacher') {
       throw new Error('Этот чат доступен только для чтения');
     }
-    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    (MOCK_DATA.messages[chatId] ||= []).push({ id: Date.now(), userId: user.id, text, time, reactions: [] });
-    chat.lastMessage = text;
-    chat.lastTime = time;
+    (MOCK_DATA.messages[chatId] ||= []).push({ id: Date.now(), userId: user.id, text, time: API.now(), reactions: [] });
     return { ok: true };
   },
 
-  // Добавить сообщение в чат клуба
+  // Найти личный чат с пользователем или создать новый
+  openDm(userId) {
+    const me = this.me().id;
+    let chat = MOCK_DATA.chats.find(c => c.type === 'dm' &&
+      ((c.ownerId === me && c.userId === userId) || (c.ownerId === userId && c.userId === me)));
+    if (!chat && MOCK_DATA.users.find(u => u.id === userId).allowMessages === false) {
+      throw new Error('Пользователь ограничил личные сообщения');
+    }
+    if (!chat) {
+      chat = { id: Date.now(), type: 'dm', ownerId: me, userId, members: 2, description: 'Личная переписка', unread: 0, lastMessage: '', lastTime: '' };
+      MOCK_DATA.chats.push(chat);
+    }
+    return chat;
+  },
+
+  // Вступить в клуб или выйти из него
+  toggleClub(clubId) {
+    const club = MOCK_DATA.clubs.find(c => c.id === clubId);
+    const me = this.me().id;
+    club.memberIds = club.memberIds.includes(me) ? club.memberIds.filter(id => id !== me) : [...club.memberIds, me];
+    return { memberIds: club.memberIds };
+  },
+
+  // Добавить сообщение в чат клуба (только участникам)
   sendClubMessage(clubId, text) {
-    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    (MOCK_DATA.clubMessages[clubId] ||= []).push({ id: Date.now(), userId: this.me().id, text, time, reactions: [] });
+    const user = this.me();
+    if (!MOCK_DATA.clubs.find(c => c.id === clubId).memberIds.includes(user.id)) {
+      throw new Error('Сначала вступите в клуб');
+    }
+    (MOCK_DATA.clubMessages[clubId] ||= []).push({ id: Date.now(), userId: user.id, text, time: API.now(), reactions: [] });
+    return { ok: true };
+  },
+
+  // Цифры для вкладки «Обзор» — считаем по данным
+  adminStats() {
+    return {
+      totalUsers: MOCK_DATA.users.length,
+      onlineNow: MOCK_DATA.users.filter(u => u.online).length,
+      activeChats: MOCK_DATA.chats.length,
+      pendingReports: MOCK_DATA.reports.length,
+    };
+  },
+
+  // Создать канал
+  createChannel({ name, description }) {
+    if (!name.trim()) throw new Error('Введите название канала');
+    const chat = { id: Date.now(), name: name.trim(), type: 'channel', icon: '📢', members: 0, description: description.trim(), unread: 0, lastMessage: '', lastTime: '' };
+    MOCK_DATA.chats.push(chat);
+    return chat;
+  },
+
+  // Изменить канал
+  updateChannel(chatId, { name, description }) {
+    if (!name.trim()) throw new Error('Введите название канала');
+    return Object.assign(MOCK_DATA.chats.find(c => c.id === chatId), { name: name.trim(), description: description.trim() });
+  },
+
+  // Отклонить жалобу — убрать её из списка
+  dismissReport(reportId) {
+    MOCK_DATA.reports = MOCK_DATA.reports.filter(r => r.id !== reportId);
+    return { ok: true };
+  },
+
+  // Заблокировать или разблокировать. Жалобы на заблокированного считаются решёнными
+  blockUser(userId, blocked) {
+    const user = MOCK_DATA.users.find(u => u.id === userId);
+    if (user.isAdmin) throw new Error('Администратора заблокировать нельзя');
+    user.blocked = blocked;
+    if (blocked) {
+      user.online = false;
+      MOCK_DATA.reports = MOCK_DATA.reports.filter(r => r.userId !== userId);
+    }
     return { ok: true };
   },
 };

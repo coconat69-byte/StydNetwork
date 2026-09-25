@@ -1,26 +1,23 @@
-/* components.css — переиспользуемые элементы: логотип, кнопки, поля, аватарки, бейджи, футер. */
+/* components.css — элементы, которые встречаются на разных экранах:
+   логотип, кнопки, поля, аватарки, ярлыки, вкладки, карточки людей, таблицы, футер. */
 
-/* Логотип */
+/* ── Логотип: синий квадрат с буквой «С» и название ── */
 .logo {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 700;
   font-size: 1.15rem;
-  color: var(--text);
 }
 
 .logo__icon {
   width: 36px;
   height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: #fff;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.1rem;
 }
 
 .logo--large .logo__icon {
@@ -30,11 +27,7 @@
   border-radius: var(--radius);
 }
 
-.logo--compact {
-  padding: 0;
-}
-
-/* Кнопки */
+/* ── Кнопки ── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -43,50 +36,56 @@
   padding: 10px 18px;
   border-radius: var(--radius-sm);
   font-weight: 500;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
-.btn--primary {
-  background: var(--accent);
-  color: #fff;
+.btn--primary { background: var(--accent); color: #fff; }        /* главная синяя */
+.btn--primary:hover { background: var(--accent-hover); }
+
+.btn--secondary { background: var(--bg-hover); border: 1px solid var(--border); } /* серая */
+.btn--secondary:hover { background: var(--bg-active); }
+
+.btn--ghost { color: var(--text-secondary); }                     /* без фона */
+.btn--ghost:hover { background: var(--bg-hover); color: var(--text); }
+
+.btn--danger { background: var(--danger-bg); color: var(--danger); }  /* красная: «Заблокировать» */
+.btn--danger:hover { background: var(--danger); color: #fff; }
+
+.btn--full { width: 100%; }                                       /* на всю ширину */
+.btn--sm { padding: 6px 12px; font-size: 0.875rem; }              /* маленькая */
+.btn--icon { padding: 10px; }                                     /* только иконка */
+
+/* Круглая кнопка с тенью: «Написать сообщение», «Вступить в клуб» */
+.btn--pill {
+  border-radius: 999px;
+  padding: 10px 22px;
 }
 
-.btn--primary:hover {
-  background: var(--accent-hover);
+.btn--pill.btn--sm {
+  padding: 6px 14px;
 }
 
-.btn--secondary {
-  background: var(--bg-hover);
-  color: var(--text);
-  border: 1px solid var(--border);
+.btn--pill.btn--primary {
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.btn--secondary:hover {
-  background: var(--bg-active);
+.btn--pill:hover {
+  transform: translateY(-1px); /* чуть приподнимается при наведении */
 }
 
-.btn--ghost {
-  color: var(--text-secondary);
+/* Кнопка «← Назад» над содержимым */
+.back-btn {
+  margin-bottom: 20px;
 }
 
-.btn--ghost:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.btn--full { width: 100%; }
-.btn--sm { padding: 6px 12px; font-size: 0.875rem; }
-.btn--icon { padding: 10px; }
-
+/* Квадратная кнопка с иконкой (тема, настройки) */
 .icon-btn {
   width: 36px;
   height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  transition: background 0.15s, color 0.15s;
 }
 
 .icon-btn:hover {
@@ -94,12 +93,7 @@
   color: var(--text);
 }
 
-.icon-btn--sm {
-  width: 28px;
-  height: 28px;
-}
-
-/* Поля формы */
+/* ── Поля формы: подпись сверху, поле снизу ── */
 .field {
   display: flex;
   flex-direction: column;
@@ -115,28 +109,35 @@
 
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+.chat-input__form input {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Синяя обводка у поля, в котором сейчас курсор */
 .field input:focus,
 .field select:focus,
-.field textarea:focus {
+.field textarea:focus,
+.chat-input__form input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .checkbox {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 16px;
   cursor: pointer;
-  font-size: 0.9rem;
 }
 
 .checkbox input {
@@ -145,11 +146,12 @@
   accent-color: var(--accent);
 }
 
-/* Аватар */
+/* ── Аватарки ── */
 .avatar {
   border-radius: 50%;
   object-fit: cover;
   background: var(--bg-active);
+  flex-shrink: 0;
 }
 
 .avatar--xs { width: 28px; height: 28px; }
@@ -158,9 +160,28 @@
 .avatar--lg { width: 96px; height: 96px; }
 .avatar--xl { width: 128px; height: 128px; }
 
+/* Эмодзи вместо картинки (у групповых чатов) */
+.avatar--icon {
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  background: var(--bg-hover);
+}
+
+/* Аватарка в шапке — кнопка «Мой профиль» */
+.avatar-btn {
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.avatar-btn:hover {
+  border-color: var(--accent-muted);
+}
+
+/* Обёртка аватарки: точка статуса стоит в правом нижнем углу */
 .avatar-wrap {
   position: relative;
-  display: inline-block;
+  flex-shrink: 0;
 }
 
 .avatar-wrap .status-dot {
@@ -169,20 +190,9 @@
   right: 1px;
 }
 
-.avatar-btn {
-  padding: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid transparent;
-  transition: border-color 0.15s;
-}
-
-.avatar-btn:hover {
-  border-color: var(--accent-muted);
-}
-
-/* Ярлык статуса */
+/* Точка статуса: серая — не в сети, зелёная — в сети */
 .status-dot {
+  display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -194,7 +204,15 @@
   background: var(--online);
 }
 
-/* Ярлык */
+/* У большой аватарки в профиле точка побольше */
+.avatar--xl + .status-dot {
+  width: 16px;
+  height: 16px;
+  bottom: 6px;
+  right: 6px;
+}
+
+/* ── Ярлыки ── */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -206,38 +224,44 @@
   color: var(--text-secondary);
 }
 
-.badge--accent {
-  background: var(--accent-light);
-  color: var(--accent);
-}
+.badge--accent { background: var(--accent-light); color: var(--accent); }
+.badge--danger { background: var(--danger-bg); color: var(--danger); }
 
+/* Число непрочитанных */
 .badge--unread {
-  background: var(--accent);
-  color: #fff;
   min-width: 20px;
   justify-content: center;
+  background: var(--accent);
+  color: #fff;
 }
 
-/* Ярлык типа чата */
+/* Тип чата: «КАНАЛ», «ГРУППА»… Цвет берётся из --type-color */
 .chat-type {
+  --type-color: var(--type-group);
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  padding: 2px 6px;
-  border-radius: 4px;
+  color: var(--type-color);
+  background: color-mix(in srgb, var(--type-color) 15%, transparent);
 }
 
-.chat-type--channel { background: color-mix(in srgb, var(--type-channel) 15%, transparent); color: var(--type-channel); }
-.chat-type--group { background: color-mix(in srgb, var(--type-group) 15%, transparent); color: var(--type-group); }
-.chat-type--direction { background: color-mix(in srgb, var(--type-direction) 15%, transparent); color: var(--type-direction); }
-.chat-type--course { background: color-mix(in srgb, var(--type-course) 15%, transparent); color: var(--type-course); }
-.chat-type--flood { background: color-mix(in srgb, var(--type-flood) 15%, transparent); color: var(--type-flood); }
-.chat-type--dm { background: color-mix(in srgb, var(--type-dm) 15%, transparent); color: var(--type-dm); }
+.chat-type--channel { --type-color: var(--type-channel); }
+.chat-type--direction { --type-color: var(--type-direction); }
+.chat-type--course { --type-color: var(--type-course); }
+.chat-type--flood { --type-color: var(--type-flood); }
+.chat-type--dm { --type-color: var(--type-dm); }
 
-/* Теги / интересы */
+/* Теги-интересы */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .tag {
-  display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.8rem;
@@ -246,96 +270,165 @@
   border: 1px solid var(--border);
 }
 
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Реакции */
-.reactions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.reaction {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+/* Тег-кнопка в настройках: выбранный интерес (клик — убрать) и подсказка (клик — добавить) */
+.tag--removable,
+.tag--suggest {
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
 }
 
-.reaction:hover,
-.reaction--active {
+.tag--removable {
+  border-color: var(--accent-muted);
   background: var(--accent-light);
-  border-color: var(--accent-muted);
-}
-
-/* Карточка */
-.card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-}
-
-.card--hover {
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.card--hover:hover {
-  border-color: var(--accent-muted);
-  box-shadow: var(--shadow-md);
-}
-
-/* Пустое состояние */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 48px 24px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-/* Статистика */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-}
-
-.stat {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-}
-
-.stat__value {
-  font-size: 1.75rem;
-  font-weight: 700;
   color: var(--accent);
 }
 
-.stat__label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
+.tag--removable:hover {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
-/* Таблица */
+.tag--suggest {
+  border-style: dashed;
+}
+
+.tag--suggest:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Поле «свой интерес» и кнопка «Добавить» в одну строку */
+.interest-input {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.interest-input input {
+  flex: 1;
+}
+
+/* ── Вкладки с подчёркиванием («Участники / Чат клуба») ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs button {
+  padding: 10px 16px;
+  margin-bottom: -1px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+}
+
+.tabs .is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Переключатель-«таблетка» («Все / Мои») ── */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.segmented button {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.segmented .is-active {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* ── Человек строкой: аватарка, имя, группа. Клик открывает профиль ── */
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.person:hover {
+  background: var(--bg-hover);
+}
+
+.person__name {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.person__about {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Человек карточкой (участники клуба) */
+.person--card {
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* ── Карточки и разное ── */
+.card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+/* Заголовок раздела: «О СЕБЕ», «ИНТЕРЕСЫ», «УЧАСТНИКИ» */
+.section-title {
+  margin: 24px 0 12px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+/* Заголовок страницы с чем-то справа (счётчик, переключатель) */
+.page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.page-title h2 {
+  font-size: 1.2rem;
+  margin-right: auto;
+}
+
+/* Надпись «здесь пусто» */
+.empty-state {
+  grid-column: 1 / -1; /* в сетке карточек — на всю ширину */
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Таблица (админ-панель) ── */
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -356,10 +449,9 @@ th, td {
 
 th {
   background: var(--bg-hover);
-  font-weight: 600;
   font-size: 0.8rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
   color: var(--text-secondary);
 }
 
@@ -367,29 +459,77 @@ tr:last-child td {
   border-bottom: none;
 }
 
-tr:hover td {
-  background: var(--bg-hover);
-}
-
-/* Футер сайта */
+/* ── Футер: текст про учебный проект слева, авторы справа. Стоит под экраном, виден при прокрутке вниз ── */
 .site-footer {
-  flex-shrink: 0;
-  padding: 16px 24px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 32px;
   border-top: 1px solid var(--border);
   background: var(--bg-elevated);
-  color: var(--text-secondary);
+}
+
+/* Текст слева: мелкий и серый, абзацы с небольшим отступом */
+.site-footer__text {
+  max-width: 760px;
   font-size: 0.75rem;
   line-height: 1.55;
-  text-align: center;
+  color: var(--text-secondary);
 }
 
-.site-footer p + p {
-  margin-top: 8px;
+.site-footer__text p + p {
+  margin-top: 6px;
 }
 
+/* Справа: надпись «Авторы» и напротив неё столбик с авторами */
 .site-footer__authors {
-  margin-top: 10px;
-  color: var(--text);
-  font-weight: 600;
+  flex-shrink: 0; /* авторы не сжимаются, сжимается текст слева */
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.site-footer__people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer__label {
   font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Автор: кружок с буквой и имя */
+.author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.author__avatar {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+/* Надпись «✓ Изменения сохранены» рядом с кнопкой в настройках */
+.save-status {
+  margin-left: 12px;
+  font-size: 0.875rem;
+  color: var(--online);
 }

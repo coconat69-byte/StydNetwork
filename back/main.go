@@ -3,6 +3,7 @@
 // Сервер делает две вещи:
 //  1. Отдаёт сайт (index.html, css, js, images) из папки на уровень выше.
 //  2. Отвечает на запросы /api/... — данные берёт из базы SQLite (см. db.go и api.go).
+//     Базу при первом запуске заполняет данными из js/data.js.
 //
 // Запуск (из папки back):  go run .
 // Затем открыть сайт: http://localhost:8080 — или как угодно ещё (Live Server,
@@ -15,6 +16,7 @@ import (
 )
 
 // frontDir — папка с сайтом (относительно папки back, откуда запускается сервер).
+// Оттуда же берётся js/data.js для заполнения базы.
 const frontDir = ".."
 
 func main() {
@@ -26,12 +28,24 @@ func main() {
 	mux.HandleFunc("POST /api/login", route(false, login))
 	mux.HandleFunc("POST /api/logout", route(true, logout))
 	mux.HandleFunc("GET /api/me", route(true, me))
+	mux.HandleFunc("POST /api/me", route(true, updateMe))
+	mux.HandleFunc("POST /api/settings", route(true, saveSetting))
 	mux.HandleFunc("GET /api/data", route(true, allData))
 	mux.HandleFunc("GET /api/chats/{id}/messages", route(true, messages))
 	mux.HandleFunc("POST /api/chats/{id}/messages", route(true, sendMessage))
+	mux.HandleFunc("POST /api/chats/{id}/read", route(true, markRead))
+	mux.HandleFunc("POST /api/dm", route(true, openDm))
+	mux.HandleFunc("POST /api/clubs/{id}/toggle", route(true, toggleClub))
 	mux.HandleFunc("GET /api/clubs/{id}/messages", route(true, clubMessages))
 	mux.HandleFunc("POST /api/clubs/{id}/messages", route(true, sendClubMessage))
-	mux.HandleFunc("GET /api/admin/stats", route(true, adminStats))
+
+	// ── Админ-панель ── adminOnly пускает только администратора
+	mux.HandleFunc("GET /api/admin/stats", route(true, adminOnly(adminStats)))
+	mux.HandleFunc("POST /api/admin/channels", route(true, adminOnly(createChannel)))
+	mux.HandleFunc("POST /api/admin/channels/{id}", route(true, adminOnly(updateChannel)))
+	mux.HandleFunc("GET /api/admin/reports", route(true, adminOnly(reports)))
+	mux.HandleFunc("POST /api/admin/reports/{id}/dismiss", route(true, adminOnly(dismissReport)))
+	mux.HandleFunc("POST /api/admin/users/{id}/block", route(true, adminOnly(blockUser)))
 
 	// ── Сайт ── отдаём только нужные папки, чтобы нельзя было скачать back/ с базой
 	files := http.FileServer(http.Dir(frontDir))

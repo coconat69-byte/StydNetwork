@@ -1,11 +1,13 @@
-/* screens.css — стили отдельных экранов: вход, шапка, чаты, профиль, поиск, клубы, настройки, админка. */
+/* screens.css — стили отдельных экранов:
+   вход, шапка, чаты, профиль, поиск, клубы, настройки и админка. */
 
-/* ========== Экран авторизации ========== */
-.auth-layout {
+/* ════════ Экран входа ════════ */
+
+/* Две половины на весь экран: синяя с описанием и белая с формой */
+#screen-auth {
   display: grid;
   grid-template-columns: 1fr 420px;
-  flex: 1;
-  min-height: 0;
+  min-height: 100vh;
 }
 
 .auth-brand {
@@ -13,44 +15,35 @@
   flex-direction: column;
   justify-content: center;
   padding: 64px;
-  background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
 .auth-brand .logo__icon {
-  background: rgba(255,255,255,0.2);
-}
-
-.auth-brand .logo__text {
-  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .auth-brand__tagline {
+  max-width: 400px;
   margin-top: 24px;
   font-size: 1.1rem;
-  opacity: 0.9;
-  max-width: 400px;
   line-height: 1.6;
+  opacity: 0.9;
 }
 
+/* Список возможностей с галочками */
 .auth-brand__features {
-  margin-top: 32px;
-  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.auth-brand__features li {
-  padding-left: 24px;
-  position: relative;
+  margin-top: 32px;
+  list-style: none;
   opacity: 0.85;
 }
 
 .auth-brand__features li::before {
   content: '✓';
-  position: absolute;
-  left: 0;
+  margin-right: 10px;
   font-weight: 700;
 }
 
@@ -62,87 +55,36 @@
   background: var(--bg-elevated);
 }
 
-.auth-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 32px;
-  background: var(--bg);
-  padding: 4px;
-  border-radius: var(--radius-sm);
-}
-
-.auth-tab {
-  flex: 1;
-  padding: 10px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-  transition: background 0.15s, color 0.15s;
-}
-
-.auth-tab--active {
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: var(--shadow);
-}
-
-.auth-form {
-  display: none;
-}
-
-.auth-form--active {
-  display: block;
-}
-
-.auth-closed-notice {
+/* Голубая плашка «закрытая платформа» с замком */
+.auth-notice {
   display: flex;
   gap: 12px;
   padding: 14px;
   margin-bottom: 20px;
-  background: var(--accent-light);
   border-radius: var(--radius-sm);
+  background: var(--accent-light);
   color: var(--text-secondary);
   font-size: 0.875rem;
-  line-height: 1.5;
 }
 
-.auth-closed-notice .icon {
+.auth-notice .icon {
   color: var(--accent);
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 
-.field-hint {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
+/* ════════ Шапка ════════ */
 
-.chat-input--readonly .chat-input__form {
-  display: none;
-}
-
-.chat-input--writable .chat-input__readonly {
-  display: none;
-}
-
-/* ========== Шапка приложения ========== */
+/* Прилипает к верху окна при прокрутке */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   height: var(--topbar-h);
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 0 24px;
-  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.topbar__left {
-  display: flex;
-  align-items: center;
-  gap: 24px;
+  background: var(--bg-elevated);
 }
 
 .topnav {
@@ -155,7 +97,6 @@
   border-radius: var(--radius-sm);
   font-weight: 500;
   color: var(--text-secondary);
-  transition: background 0.15s, color 0.15s;
 }
 
 .topnav__item:hover {
@@ -163,11 +104,12 @@
   color: var(--text);
 }
 
-.topnav__item--active {
+.topnav__item.is-active {
   background: var(--accent-light);
   color: var(--accent);
 }
 
+/* Строка поиска людей */
 .topbar__search {
   flex: 1;
   max-width: 400px;
@@ -175,17 +117,17 @@
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--bg);
   color: var(--text-muted);
 }
 
 .topbar__search input {
   flex: 1;
   border: none;
-  background: none;
   outline: none;
+  background: none;
   color: var(--text);
 }
 
@@ -196,35 +138,27 @@
   margin-left: auto;
 }
 
-.main-content {
-  flex: 1;
-}
+/* ════════ Чаты ════════ */
 
-/* ========== Макет 3-колоночного чата ========== */
+/* Три колонки на всю высоту окна: список, переписка, информация */
 .chat-layout {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr var(--info-w);
+  grid-template-columns: 320px 1fr 300px;
   height: calc(100vh - var(--topbar-h));
 }
 
+/* Левая колонка: заголовок, фильтры, список */
 .chat-sidebar {
-  border-right: 1px solid var(--border);
-  background: var(--bg-elevated);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
 
-.chat-sidebar__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.chat-sidebar__title {
   padding: 16px 16px 12px;
-}
-
-.chat-sidebar__header h2 {
   font-size: 1.1rem;
-  font-weight: 600;
 }
 
 .chat-filters {
@@ -237,12 +171,11 @@
 
 .chat-filter {
   padding: 4px 10px;
+  border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-secondary);
-  border: 1px solid var(--border);
-  transition: all 0.15s;
 }
 
 .chat-filter:hover {
@@ -250,10 +183,10 @@
   color: var(--accent);
 }
 
-.chat-filter--active {
+.chat-filter.is-active {
+  border-color: var(--accent);
   background: var(--accent);
   color: #fff;
-  border-color: var(--accent);
 }
 
 .chat-list {
@@ -261,63 +194,58 @@
   overflow-y: auto;
 }
 
+/* Один чат в списке */
 .chat-item {
   display: flex;
-  align-items: flex-start;
   gap: 12px;
   padding: 12px 16px;
-  cursor: pointer;
   border-bottom: 1px solid var(--border);
-  transition: background 0.15s;
+  border-left: 3px solid transparent;
+  cursor: pointer;
 }
 
 .chat-item:hover {
   background: var(--bg-hover);
 }
 
-.chat-item--active {
+.chat-item.is-active {
   background: var(--accent-light);
-  border-left: 3px solid var(--accent);
-}
-
-.chat-item__avatar {
-  position: relative;
-  flex-shrink: 0;
+  border-left-color: var(--accent);
 }
 
 .chat-item__body {
   flex: 1;
-  min-width: 0;
+  min-width: 0; /* чтобы длинный текст обрезался многоточием, а не растягивал колонку */
 }
 
 .chat-item__top {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+/* Имя и превью — в одну строку, лишнее заменяется на «…» */
+.chat-item__name,
+.chat-item__preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-item__name {
   font-weight: 600;
   font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .chat-item__time {
   font-size: 0.75rem;
   color: var(--text-muted);
-  flex-shrink: 0;
 }
 
 .chat-item__preview {
+  margin-top: 2px;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
 }
 
 .chat-item__meta {
@@ -327,26 +255,21 @@
   margin-top: 4px;
 }
 
-/* Главный чат */
+/* Центральная колонка: шапка чата, сообщения, поле ввода */
 .chat-main {
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   min-width: 0;
 }
 
 .chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 12px 20px;
-  background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
 }
 
-.chat-header__info h2 {
+.chat-header h2 {
   font-size: 1rem;
-  font-weight: 600;
 }
 
 .chat-header__meta {
@@ -354,85 +277,116 @@
   color: var(--text-secondary);
 }
 
-.chat-header__actions {
-  display: flex;
-  gap: 4px;
-}
-
+/* Лента сообщений (и в чатах, и в чате клуба) */
 .chat-messages {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
 }
 
+/* Одно сообщение: аватарка + «пузырь» */
 .message {
   display: flex;
   gap: 12px;
   max-width: 75%;
 }
 
-.message--own {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
-
-.message__avatar {
-  flex-shrink: 0;
+.message .avatar,
+.message__author {
+  cursor: pointer; /* по аватарке и имени открывается профиль */
 }
 
 .message__bubble {
-  background: var(--bg-elevated);
+  padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px 14px;
+  background: var(--bg-elevated);
   box-shadow: var(--shadow);
 }
 
-.message--own .message__bubble {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
 .message__author {
+  margin-bottom: 4px;
   font-size: 0.8rem;
   font-weight: 600;
-  margin-bottom: 4px;
   color: var(--accent);
-}
-
-.message--own .message__author {
-  color: rgba(255,255,255,0.85);
 }
 
 .message__text {
   font-size: 0.9rem;
-  line-height: 1.5;
+  overflow-wrap: anywhere; /* длинное слово без пробелов не вылезет за пузырь */
 }
 
 .message__time {
+  margin-top: 6px;
   font-size: 0.7rem;
   color: var(--text-muted);
-  margin-top: 6px;
 }
 
-.message--own .message__time {
-  color: rgba(255,255,255,0.7);
+/* Свои сообщения — справа и синие */
+.message--own {
+  align-self: flex-end;
 }
 
-.message--own .reaction {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.2);
+.message--own .message__bubble {
+  border-color: var(--accent);
+  background: var(--accent);
   color: #fff;
 }
 
+.message--own .message__time {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Сообщение, где упоминается моё имя (настройка «Упоминания») */
+.message--mention .message__bubble {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Компактный режим (настройка во «Внешнем виде»): меньше отступов в чатах */
+.compact .chat-item { padding: 8px 16px; }
+.compact .chat-messages { gap: 8px; padding: 12px 20px; }
+.compact .message__bubble { padding: 6px 10px; }
+.compact .message__time { margin-top: 2px; }
+
+/* Реакции под сообщением: «👍 18» */
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.reaction {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: var(--bg-hover);
+}
+
+.message--own .reaction {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Низ чата: поле ввода или плашка «только чтение» */
 .chat-input {
   padding: 12px 20px;
-  background: var(--bg-elevated);
   border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.chat-input__form {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input__form input {
+  flex: 1;
 }
 
 .chat-input__readonly {
@@ -441,279 +395,183 @@
   justify-content: center;
   gap: 8px;
   padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
   color: var(--text-secondary);
   font-size: 0.875rem;
-  background: var(--bg-hover);
-  border-radius: var(--radius-sm);
 }
 
-.chat-input__form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chat-input__form input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-}
-
-.chat-input__form input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-/* Панель информации о чате */
+/* Правая колонка: информация о чате */
 .chat-info {
+  padding: 20px;
+  overflow-y: auto;
   border-left: 1px solid var(--border);
   background: var(--bg-elevated);
-  overflow-y: auto;
-}
-
-.chat-info__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 24px;
-  text-align: center;
-  color: var(--text-muted);
-  gap: 12px;
-}
-
-.chat-info__content {
-  padding: 20px;
 }
 
 .chat-info__title {
-  font-size: 1rem;
-  font-weight: 600;
   margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .chat-info__desc {
+  margin-top: 12px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 16px;
-  line-height: 1.5;
 }
 
-.chat-info__section {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
+/* ════════ Профиль ════════ */
 
-.chat-info__section h4 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-}
-
-.member-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.member-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.member-item:hover {
-  background: var(--bg-hover);
-}
-
-.member-item__name {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.member-item__role {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-/* ========== Профиль ========== */
 .profile-layout {
   max-width: 720px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 32px 24px;
 }
 
 .profile-header {
   display: flex;
+  align-items: center;
   gap: 32px;
-  align-items: flex-start;
-  margin-bottom: 32px;
-}
-
-.profile-header__info {
-  flex: 1;
 }
 
 .profile-header__name {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.6rem;
 }
 
-.profile-header__meta {
-  color: var(--text-secondary);
+.profile-header__about {
   margin-top: 4px;
-  font-size: 0.95rem;
+  color: var(--text-secondary);
 }
 
 .profile-header__status {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 8px;
+  margin: 8px 0 16px;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
-.profile-section {
-  margin-top: 24px;
-}
+/* ════════ Экраны с меню слева: поиск, настройки, админка ════════ */
 
-.profile-section h3 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-}
-
-/* ========== Поиск ========== */
-.search-layout {
+.side-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
-  height: calc(100vh - var(--topbar-h));
+  min-height: calc(100vh - var(--topbar-h));
 }
 
-.search-filters {
+/* Левое меню */
+.side-nav {
   padding: 24px;
   border-right: 1px solid var(--border);
   background: var(--bg-elevated);
-  overflow-y: auto;
 }
 
-.search-filters h2 {
-  font-size: 1.1rem;
+.side-nav h2 {
   margin-bottom: 20px;
-}
-
-.search-results {
-  padding: 24px;
-  overflow-y: auto;
-}
-
-.search-results__header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.search-results__header h2 {
   font-size: 1.1rem;
 }
+
+.side-nav .badge {
+  margin: -12px 0 20px;
+}
+
+.side-nav__item {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.side-nav__item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.side-nav__item.is-active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* «Выйти» — красным и отдельно от остальных пунктов */
+.side-nav__item--danger {
+  margin-top: 24px;
+  color: var(--danger);
+}
+
+.side-nav__item--danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Правая часть */
+.side-content {
+  padding: 32px;
+}
+
+.side-content h3 {
+  margin-bottom: 24px;
+  font-size: 1.2rem;
+}
+
+.side-content--narrow {
+  max-width: 640px;
+}
+
+/* ════════ Поиск ════════ */
 
 .user-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 
+/* Карточка человека: всё по центру, «Написать» внизу */
 .user-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
+  gap: 8px;
   padding: 24px;
-  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  background: var(--bg-elevated);
+  text-align: center;
+  cursor: pointer;
 }
 
-.user-card:hover {
+.user-card:hover,
+.club-card:hover {
   border-color: var(--accent-muted);
   box-shadow: var(--shadow-md);
 }
 
 .user-card__name {
+  margin-top: 4px;
   font-weight: 600;
-  margin-top: 12px;
 }
 
-.user-card__group {
+.user-card__about {
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-top: 4px;
 }
 
-.user-card__interests {
-  margin-top: 12px;
+.user-card .tag-list {
+  justify-content: center;
 }
 
 .user-card .btn {
-  margin-top: 16px;
+  margin-top: auto; /* кнопки во всех карточках — на одной линии внизу */
 }
 
-/* ========== Клубы ========== */
-.clubs-layout {
-  height: calc(100vh - var(--topbar-h));
-  overflow-y: auto;
-}
+/* ════════ Клубы ════════ */
 
-.clubs-catalog {
+.page {
   padding: 24px;
-}
-
-.clubs-catalog__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.clubs-catalog__header h2 {
-  font-size: 1.25rem;
-}
-
-.clubs-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-hover);
-  padding: 4px;
-  border-radius: var(--radius-sm);
-}
-
-.clubs-tab {
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.clubs-tab--active {
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: var(--shadow);
 }
 
 .club-cards {
@@ -723,27 +581,20 @@
 }
 
 .club-card {
-  background: var(--bg-elevated);
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  background: var(--bg-elevated);
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.club-card:hover {
-  border-color: var(--accent-muted);
-  box-shadow: var(--shadow-md);
-}
-
+/* Синяя полоса с эмодзи клуба */
 .club-card__banner {
   height: 100px;
-  background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   font-size: 2rem;
-  color: rgba(255,255,255,0.9);
+  background: var(--accent-gradient);
 }
 
 .club-card__body {
@@ -752,18 +603,17 @@
 
 .club-card__name {
   font-weight: 600;
-  font-size: 1rem;
 }
 
+/* Описание — не больше двух строк */
 .club-card__desc {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
 .club-card__footer {
@@ -775,150 +625,55 @@
   color: var(--text-muted);
 }
 
-.clubs-detail {
-  padding: 24px;
-}
-
-.clubs-back {
-  margin-bottom: 20px;
-}
-
-.club-detail-header {
+/* Страница клуба */
+.club-header {
   display: flex;
   gap: 24px;
   margin-bottom: 32px;
 }
 
-.club-detail-banner {
+.club-header__banner {
   width: 120px;
   height: 120px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  color: #fff;
   flex-shrink: 0;
-}
-
-.club-detail-info h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.club-detail-info p {
-  color: var(--text-secondary);
-  margin-top: 8px;
-  line-height: 1.5;
-}
-
-.club-detail-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0;
-}
-
-.club-detail-tab {
-  padding: 10px 16px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.club-detail-tab--active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-.club-members-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 3rem;
+  background: var(--accent-gradient);
 }
 
-.club-member {
+.club-header__name {
+  font-size: 1.5rem;
+}
+
+.club-header__desc {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.club-header__meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  gap: 8px;
+  margin: 12px 0 16px;
 }
 
-.club-chat-preview {
-  background: var(--bg-elevated);
+/* Чат клуба: лента в рамке + поле ввода под ней */
+.club-chat {
+  max-height: 420px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  max-height: 400px;
-  overflow-y: auto;
+  background: var(--bg);
 }
 
-/* ========== Настройки ========== */
-.settings-layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  height: calc(100vh - var(--topbar-h));
+.club-chat__input {
+  margin-top: 12px;
 }
 
-.settings-nav {
-  padding: 24px;
-  border-right: 1px solid var(--border);
-  background: var(--bg-elevated);
-}
+/* ════════ Настройки ════════ */
 
-.settings-nav h2 {
-  font-size: 1.1rem;
-  margin-bottom: 20px;
-}
-
-.settings-nav__item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-  transition: background 0.15s, color 0.15s;
-}
-
-.settings-nav__item:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.settings-nav__item--active {
-  background: var(--accent-light);
-  color: var(--accent);
-}
-
-.settings-nav__item--danger {
-  color: var(--danger);
-  margin-top: 24px;
-}
-
-.settings-nav__item--danger:hover {
-  background: var(--danger-bg);
-}
-
-.settings-content {
-  padding: 32px;
-  overflow-y: auto;
-  max-width: 640px;
-}
-
-.settings-content h3 {
-  font-size: 1.15rem;
-  margin-bottom: 24px;
-}
-
+/* Строка с переключателем справа */
 .settings-row {
   display: flex;
   align-items: center;
@@ -927,52 +682,47 @@
   border-bottom: 1px solid var(--border);
 }
 
-.settings-row__info label {
+.settings-row__label {
   font-weight: 500;
 }
 
-.settings-row__info p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-/* Toggle switch */
+/* Переключатель: серая «таблетка», синяя когда включён. Кружок рисуется через ::after */
 .toggle {
+  position: relative;
   width: 44px;
   height: 24px;
-  background: var(--bg-active);
+  flex-shrink: 0;
   border-radius: 999px;
-  position: relative;
+  background: var(--bg-active);
   cursor: pointer;
   transition: background 0.2s;
-  flex-shrink: 0;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
 }
 
 .toggle--on {
   background: var(--accent);
 }
 
-.toggle__knob {
-  width: 20px;
-  height: 20px;
-  background: #fff;
-  border-radius: 50%;
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  transition: transform 0.2s;
-  box-shadow: var(--shadow);
-}
-
-.toggle--on .toggle__knob {
+.toggle--on::after {
   transform: translateX(20px);
 }
 
+/* Выбор темы: две карточки с превью */
 .theme-picker {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
 }
 
 .theme-option {
@@ -982,85 +732,59 @@
   border-radius: var(--radius);
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s;
 }
 
-.theme-option--active {
+.theme-option.is-active {
   border-color: var(--accent);
 }
 
 .theme-option__preview {
-  width: 100%;
   height: 48px;
-  border-radius: var(--radius-sm);
   margin-bottom: 8px;
+  border-radius: var(--radius-sm);
 }
 
-.theme-option__preview--light {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
+.theme-option__preview--light { background: #f8fafc; border: 1px solid #e2e8f0; }
+.theme-option__preview--dark { background: #0f172a; border: 1px solid #334155; }
 
-.theme-option__preview--dark {
-  background: #0f172a;
-  border: 1px solid #334155;
-}
+/* ════════ Админ-панель ════════ */
 
-/* ========== Админ-панель ========== */
-.admin-layout {
+/* Карточки с цифрами */
+.stat-grid {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  height: calc(100vh - var(--topbar-h));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
 }
 
-.admin-nav {
-  padding: 24px;
-  border-right: 1px solid var(--border);
+.stat {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg-elevated);
 }
 
-.admin-nav h2 {
-  font-size: 1.1rem;
-}
-
-.admin-nav .badge {
-  margin: 8px 0 20px;
-}
-
-.admin-nav__item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-  transition: background 0.15s, color 0.15s;
-}
-
-.admin-nav__item:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.admin-nav__item--active {
-  background: var(--accent-light);
+.stat__value {
+  font-size: 1.75rem;
+  font-weight: 700;
   color: var(--accent);
 }
 
-.admin-content {
-  padding: 32px;
-  overflow-y: auto;
-}
-
-.admin-content h3 {
-  font-size: 1.25rem;
+/* Форма над таблицей: «Новый канал», «Новое объявление» */
+.admin-form {
+  max-width: 560px;
   margin-bottom: 24px;
 }
 
-.admin-actions {
+.admin-form h4 {
+  margin-bottom: 16px;
+}
+
+.admin-form .btn + .btn {
+  margin-left: 8px;
+}
+
+/* Несколько кнопок в ячейке таблицы — в ряд */
+.actions {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 8px;
 }

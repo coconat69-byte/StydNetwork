@@ -1,6 +1,7 @@
-/* base.css — общие стили: сброс отступов, body, экраны и иконки.
-   Здесь же правила, какой экран показывать: вход или приложение (класс .logged-in). */
+/* base.css — основа: сброс стилей браузера, шрифт, полосы прокрутки
+   и правила, какой экран показывать. */
 
+/* Убираем отступы браузера по умолчанию; ширина считается вместе с рамкой */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -10,49 +11,11 @@
 html {
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
-  color-scheme: light;
+  color-scheme: light; /* цвета встроенных элементов браузера (полосы прокрутки, поля) */
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-*::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-  height: var(--scrollbar-size);
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 999px;
-}
-
-*::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 999px;
-  border: 2px solid var(--scrollbar-track);
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-  border: 2px solid var(--scrollbar-track);
-  background-clip: padding-box;
-}
-
-*::-webkit-scrollbar-corner {
-  background: var(--scrollbar-track);
-}
-
-*::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 body {
@@ -60,15 +23,15 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
-  min-height: 100vh;
 }
 
-/* Пока не вошли — страница не прокручивается */
-html:not(.logged-in) body {
-  overflow: hidden;
-  height: 100vh;
+/* Тонкие полосы прокрутки в цвет темы */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) transparent;
 }
 
+/* Кнопки и поля берут шрифт и цвет страницы, а не свои браузерные */
 button, input, select, textarea {
   font: inherit;
   color: inherit;
@@ -80,64 +43,70 @@ button {
   background: none;
 }
 
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
 img {
   display: block;
   max-width: 100%;
 }
 
+/* Атрибут hidden всегда прячет элемент, даже если в CSS ему задан display */
+[hidden] {
+  display: none !important;
+}
+
+/* Вся страница — по центру и не шире --max-w */
 .app {
   max-width: var(--max-w);
   margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
+/* Вход или приложение — решает класс .logged-in на <html>.
+   Его ставит скрипт в <head> ещё до отрисовки, поэтому при обновлении ничего не мигает. */
+.app-shell,
+.logged-in #screen-auth {
+  display: none;
+}
+
+.logged-in .app-shell {
+  display: block;
+}
+
+/* Экраны приложения: виден только активный (.is-active).
+   Шапка + экран = ровно высота окна, поэтому футер оказывается ниже
+   и появляется, только если прокрутить страницу вниз. */
 .screen {
   display: none;
   min-height: calc(100vh - var(--topbar-h));
 }
 
-.screen--active {
+.screen.is-active {
   display: block;
 }
 
-/* Что показывать, решает класс .logged-in на <html>.
-   Он ставится скриптом в <head> ещё до отрисовки — поэтому при
-   обновлении страницы окно входа не мелькает. */
-#screen-auth {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.app-shell {
-  display: none;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.logged-in #screen-auth { display: none; }
-.logged-in .app-shell { display: flex; }
-
+/* Иконки (svg) */
 .icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
 }
 
-.icon--lg {
-  width: 48px;
-  height: 48px;
-  color: var(--text-muted);
+/* В светлой теме на кнопке темы показываем солнце, в тёмной — луну */
+[data-theme="light"] .icon--moon,
+[data-theme="dark"] .icon--sun {
+  display: none;
 }
 
-[data-theme="light"] .icon--moon { display: none; }
-[data-theme="dark"] .icon--sun { display: none; }
+/* Мелкий серый текст */
+.muted {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Текст, похожий на ссылку (например, имя в таблице) */
+.link {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

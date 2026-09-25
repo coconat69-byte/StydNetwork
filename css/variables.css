@@ -1,26 +1,27 @@
-/* variables.css — цвета, шрифты и размеры (CSS-переменные).
-   Светлая тема — в :root, тёмная — в [data-theme="dark"]. */
+/* variables.css — цвета, шрифт и размеры сайта (CSS-переменные).
+   Светлая тема — в :root, тёмная переопределяет цвета в [data-theme="dark"].
+   Хотите поменять цвет или размер везде сразу — меняйте здесь. */
 
 :root {
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Синий акцент */
+  /* Главный синий цвет и его оттенки */
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
   --accent-light: #dbeafe;
   --accent-muted: #93c5fd;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, #1e40af 100%);
 
-  /* Светлая тема */
-  --bg: #f8fafc;
-  --bg-elevated: #ffffff;
-  --bg-hover: #f1f5f9;
+  /* Фон, рамки и текст */
+  --bg: #f8fafc;            /* фон страницы */
+  --bg-elevated: #ffffff;   /* фон карточек и панелей */
+  --bg-hover: #f1f5f9;      /* фон при наведении */
   --bg-active: #e2e8f0;
   --border: #e2e8f0;
-  --border-strong: #cbd5e1;
   --text: #0f172a;
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
 
   /* Статусы */
@@ -28,10 +29,8 @@
   --offline: #94a3b8;
   --danger: #ef4444;
   --danger-bg: #fef2f2;
-  --warning: #f59e0b;
-  --success: #22c55e;
 
-  /* Цвета типов чатов */
+  /* Цвета ярлыков типов чатов */
   --type-channel: #8b5cf6;
   --type-group: #2563eb;
   --type-direction: #0891b2;
@@ -39,19 +38,11 @@
   --type-flood: #f59e0b;
   --type-dm: #ec4899;
 
-  /* Макет */
-  --topbar-h: 56px;
-  --sidebar-w: 320px;
-  --info-w: 300px;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-lg: 14px;
-  --max-w: 1440px;
-
-  --scrollbar-size: 8px;
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  /* Размеры */
+  --topbar-h: 56px;   /* высота шапки */
+  --radius: 10px;     /* скругление карточек */
+  --radius-sm: 6px;   /* скругление кнопок и полей */
+  --max-w: 1440px;    /* максимальная ширина сайта */
 }
 
 [data-theme="dark"] {
@@ -65,7 +56,6 @@
   --bg-hover: #334155;
   --bg-active: #475569;
   --border: #334155;
-  --border-strong: #475569;
   --text: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
@@ -73,8 +63,4 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
 
   --danger-bg: #450a0a;
-
-  --scrollbar-track: #0f172a;
-  --scrollbar-thumb: #475569;
-  --scrollbar-thumb-hover: #64748b;
 }
