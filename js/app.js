@@ -1,358 +1,318 @@
 /**
- * СтудСеть — главный модуль UI
+ * СтудСеть — главный модуль интерфейса.
+ * Данные приходят с сервера через API (js/api.js), здесь только отрисовка и обработка кликов.
  */
 
 (function () {
   'use strict';
 
-  // ── Состояние ─────────────────────────────────────────
+  // Данные с сервера (пользователи, чаты, клубы…) — загружаются после входа
+  let DATA = null;
+
+  // Текущее состояние интерфейса: где пользователь находится и что у него открыто
   const state = {
-    currentUser: null,
-    currentScreen: 'auth',
-    activeChatId: null,
-    chatFilter: 'all',
-    settingsTab: 'profile',
-    adminTab: 'dashboard',
-    clubsView: 'all',
-    selectedClubId: null,
-    theme: localStorage.getItem('studnet-theme') || 'light',
+    user: null,
+    screen: 'main',         // открытый экран: main, search, clubs, settings, admin, profile
+    profileId: null,        // чей профиль открыт
+    activeChatId: null,     // открытый чат
+    chatFilter: 'all',      // фильтр над списком чатов
+    settingsTab: 'profile', // вкладка настроек
+    adminTab: 'dashboard',  // вкладка админ-панели
+    clubsView: 'all',       // «Все» или «Мои» клубы
+    selectedClubId: null,   // открытый клуб
+    clubTab: 'members',     // вкладка клуба: members или chat
   };
 
-  const SESSION_KEY = 'studnet-user-id';
+  // Состояние сохраняется в sessionStorage перед обновлением страницы и восстанавливается после.
+  // При закрытии вкладки sessionStorage очищается — и всё начинается с начала.
+  const UI_KEY = 'studnet-ui';
 
-  // ── DOM элементы ──────────────────────────────────────
+  function saveUi() {
+    if (!state.user) return; // не вошли или выходим — сохранять нечего
+    const { user, ...ui } = state;
+    sessionStorage.setItem(UI_KEY, JSON.stringify(ui));
+  }
+
+  function restoreUi() {
+    try {
+      Object.assign(state, JSON.parse(sessionStorage.getItem(UI_KEY)));
+    } catch {
+      // сохранённого состояния нет или оно испорчено — остаёмся на значениях по умолчанию
+    }
+  }
+
+  // ── Мелкие помощники ────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => document.querySelectorAll(sel);
+  const userById = (id) => DATA.users.find(u => u.id === id);
+  const chatById = (id) => DATA.chats.find(c => c.id === id);
+  // Точка «в сети / не в сети» и список тегов-интересов
+  const dot = (u) => `<span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span>`;
+  const tags = (list) => list.map(i => `<span class="tag">${i}</span>`).join('');
 
-  // ── Инициализация ──────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', init);
 
-  function init() {
-    applyTheme(state.theme);
-    populateSelects();
+  // Старт: если в этой вкладке уже входили (есть токен) — проверяем его и открываем приложение
+  async function init() {
     bindEvents();
-
-    const savedUser = restoreSession();
-    if (savedUser) {
-      state.currentUser = savedUser;
-      enterApp();
-    } else {
-      lockAuth(true);
+    if (!API.hasToken()) return showLogin();
+    try {
+      await enterApp(await API.me());
+    } catch {
+      await API.logout(); // токен устарел или сервер недоступен — просим войти заново
+      showLogin();
     }
   }
 
-  function restoreSession() {
-    const raw = localStorage.getItem(SESSION_KEY);
-    const id = Number(raw);
-    if (!id) return null;
-    return MOCK_DATA.users.find(u => u.id === id) || null;
-  }
-
-  function saveSession(user) {
-    if (user) localStorage.setItem(SESSION_KEY, String(user.id));
-    else localStorage.removeItem(SESSION_KEY);
-  }
-
-  function lockAuth(locked) {
-    document.body.classList.toggle('auth-locked', locked);
-    $('#app-shell').classList.toggle('app-shell--visible', !locked);
-  }
-
-  function populateSelects() {
-    const groupSelects = ['#filter-group'];
-    const dirSelects = ['#filter-direction'];
-
-    groupSelects.forEach(sel => {
-      const el = $(sel);
-      if (!el) return;
-      MOCK_DATA.groups.forEach(g => {
-        el.innerHTML += `<option value="${g}">${g}</option>`;
-      });
-    });
-
-    dirSelects.forEach(sel => {
-      const el = $(sel);
-      if (!el) return;
-      MOCK_DATA.directions.forEach(d => {
-        el.innerHTML += `<option value="${d}">${d}</option>`;
-      });
-    });
-  }
-
-  // ── События ────────────────────────────────────────
-  function bindEvents() {
-    $('#form-login').addEventListener('submit', handleLogin);
-
-    // Тема
-    $('#theme-toggle').addEventListener('click', toggleTheme);
-
-    // Навигация
-    $$('[data-nav]').forEach(btn => {
-      btn.addEventListener('click', () => navigate(btn.dataset.nav));
-    });
-
-    // Фильтры чатов
-    // rendered dynamically
-
-    // Отправка сообщения
-    $('#send-message').addEventListener('click', sendMessage);
-    $('#message-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
-
-    // Фильтры поиска
-    ['#filter-group', '#filter-direction', '#filter-course', '#filter-online'].forEach(sel => {
-      $(sel)?.addEventListener('change', renderSearchResults);
-    });
-    $('#reset-filters')?.addEventListener('click', resetSearchFilters);
-
-    // Настройки
-    $$('[data-settings]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.settings === 'logout') { handleLogout(); return; }
-        state.settingsTab = btn.dataset.settings;
-        $$('.settings-nav__item').forEach(b => b.classList.toggle('settings-nav__item--active', b.dataset.settings === state.settingsTab));
-        renderSettings();
-      });
-    });
-
-    // Админ-панель
-    $$('[data-admin]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.adminTab = btn.dataset.admin;
-        $$('.admin-nav__item').forEach(b => b.classList.toggle('admin-nav__item--active', b.dataset.admin === state.adminTab));
-        renderAdmin();
-      });
-    });
-
-    // Клубы
-    $$('[data-clubs-view]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.clubsView = btn.dataset.clubsView;
-        $$('.clubs-tab').forEach(b => b.classList.toggle('clubs-tab--active', b.dataset.clubsView === state.clubsView));
-        renderClubs();
-      });
-    });
-
-    $('#clubs-back')?.addEventListener('click', () => {
-      state.selectedClubId = null;
-      $('#clubs-catalog').hidden = false;
-      $('#clubs-detail').hidden = true;
-    });
-  }
-
-  // ── Авторизация ──────────────────────────────────────────
+  // ── Вход и выход ────────────────────────────────────────
   async function handleLogin(e) {
     e.preventDefault();
-    const code = $('#login-code').value.trim();
-    const result = await API.loginByCode(code);
-    if (result.success) {
-      state.currentUser = result.user;
-      saveSession(result.user);
-      enterApp();
-    } else {
-      alert(result.error || 'Ошибка входа');
+    try {
+      await enterApp(await API.login($('#login-code').value));
+    } catch (err) {
+      alert(err.message);
     }
   }
 
-  function handleLogout() {
-    state.currentUser = null;
-    state.activeChatId = null;
-    saveSession(null);
-    lockAuth(true);
-    $('#screen-auth').classList.add('screen--active');
-    $$('#app-shell .screen').forEach(s => s.classList.remove('screen--active'));
-    $('#login-code').value = '';
-    $('#admin-link').hidden = true;
+  // Показать экран входа (класс logged-in управляет видимостью, см. css/base.css)
+  function showLogin() {
+    document.documentElement.classList.remove('logged-in');
   }
 
-  function enterApp() {
-    lockAuth(false);
-    $('#screen-auth').classList.remove('screen--active');
-    navigate('main');
+  // Выход: забываем токен и сохранённое состояние, перезагружаем страницу — так сбрасывается всё
+  async function logout() {
+    state.user = null;
+    sessionStorage.removeItem(UI_KEY);
+    await API.logout();
+    location.reload();
+  }
 
-    const user = state.currentUser;
+  // Вход выполнен: загружаем данные, восстанавливаем, где был пользователь, и рисуем интерфейс
+  async function enterApp(user) {
+    restoreUi();
+    state.user = user;
+    DATA = await API.data();
+    $('#filter-group').innerHTML += DATA.groups.map(g => `<option>${g}</option>`).join('');
+    $('#filter-direction').innerHTML += DATA.directions.map(d => `<option>${d}</option>`).join('');
+
+    document.documentElement.classList.add('logged-in');
     $('#current-user-avatar img').src = user.avatar;
     $('#current-user-avatar img').alt = user.name;
-
     $('#admin-link').hidden = user.role !== 'teacher';
+
+    // Подсвечиваем сохранённые вкладки
+    markTab($('.clubs-tabs'), 'clubs-view', 'clubs-tab--active', state.clubsView);
+    markTab($('.settings-nav'), 'settings', 'settings-nav__item--active', state.settingsTab);
+    markTab($('.admin-nav'), 'admin', 'admin-nav__item--active', state.adminTab);
 
     renderChatFilters();
     renderChatList();
-    renderSearchResults();
-    renderClubs();
-    renderSettings();
+    if (state.activeChatId) selectChat(state.activeChatId);
+    if (state.screen === 'admin' && user.role !== 'teacher') state.screen = 'main';
+    navigate(state.screen, state.profileId ?? user.id);
   }
 
-  // ── Навигация ────────────────────────────────────
-  function navigate(screen) {
-    if (!state.currentUser) return;
-    state.currentScreen = screen;
+  // ── События (все обработчики кликов вешаются один раз при старте) ──
+  // Подсветить вкладку со значением value среди кнопок [data-attr] внутри root
+  function markTab(root, attr, activeClass, value) {
+    root.querySelectorAll(`[data-${attr}]`).forEach(b => b.classList.toggle(activeClass, b.getAttribute(`data-${attr}`) === value));
+  }
 
-    $$('#app-shell .screen').forEach(s => {
-      s.classList.toggle('screen--active', s.id === `screen-${screen}`);
+  // Вкладки: подсвечиваем нажатую кнопку и передаём её значение в onPick
+  function bindTabs(root, attr, activeClass, onPick) {
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest(`[data-${attr}]`);
+      if (!btn) return;
+      const value = btn.getAttribute(`data-${attr}`);
+      markTab(root, attr, activeClass, value);
+      onPick(value);
+    });
+  }
+
+  // Здесь навешиваются все обработчики. Клики внутри списков ловим на самом списке
+  // (e.target.closest(...)), поэтому после перерисовки ничего перевешивать не нужно.
+  function bindEvents() {
+    window.addEventListener('pagehide', saveUi); // страница обновляется или закрывается
+    $('#form-login').addEventListener('submit', handleLogin);
+    $('#logout').addEventListener('click', logout);
+    $('#theme-toggle').addEventListener('click', () => setTheme(theme() === 'light' ? 'dark' : 'light'));
+    $$('[data-nav]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.nav)));
+
+    // Чаты
+    $('#chat-type-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-filter]');
+      if (!btn) return;
+      state.chatFilter = btn.dataset.filter;
+      renderChatFilters();
+      renderChatList();
+    });
+    $('#chat-list').addEventListener('click', (e) => {
+      const item = e.target.closest('[data-chat-id]');
+      if (item) selectChat(+item.dataset.chatId);
+    });
+    $('#chat-info-content').addEventListener('click', (e) => {
+      const item = e.target.closest('[data-user-id]');
+      if (item) navigate('profile', +item.dataset.userId);
+    });
+    $('#send-message').addEventListener('click', sendMessage);
+    $('#message-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    // Профиль и поиск: «Написать» и клик по карточке
+    $('#profile-content').addEventListener('click', onUserClick);
+    $('#user-cards').addEventListener('click', onUserClick);
+    ['#filter-group', '#filter-direction', '#filter-course', '#filter-online'].forEach(sel => {
+      $(sel).addEventListener('change', renderSearchResults);
+    });
+    $('#reset-filters').addEventListener('click', () => {
+      $('#filter-group').value = $('#filter-direction').value = $('#filter-course').value = '';
+      $('#filter-online').checked = false;
+      renderSearchResults();
     });
 
-    $$('.topnav__item').forEach(b => {
-      b.classList.toggle('topnav__item--active', b.dataset.nav === screen);
+    // Клубы
+    bindTabs($('.clubs-tabs'), 'clubs-view', 'clubs-tab--active', (v) => { state.clubsView = v; renderClubs(); });
+    $('#club-cards').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-club-id]');
+      if (!card) return;
+      state.selectedClubId = +card.dataset.clubId;
+      state.clubTab = 'members';
+      renderClubs();
+    });
+    $('#clubs-back').addEventListener('click', () => { state.selectedClubId = null; renderClubs(); });
+    bindTabs($('#club-detail-content'), 'club-tab', 'club-detail-tab--active', (tab) => { state.clubTab = tab; renderClubTab(); });
+    // Чат клуба: кнопка отправки или Enter в поле ввода
+    $('#club-detail-content').addEventListener('click', (e) => { if (e.target.closest('[data-club-send]')) sendClubMessage(); });
+    $('#club-detail-content').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'club-message-input') sendClubMessage(); });
+
+    // Настройки
+    bindTabs($('.settings-nav'), 'settings', 'settings-nav__item--active', (v) => { state.settingsTab = v; renderSettings(); });
+    $('#settings-content').addEventListener('click', (e) => {
+      const opt = e.target.closest('[data-set-theme]');
+      if (opt) { setTheme(opt.dataset.setTheme); renderSettings(); }
+      e.target.closest('.toggle')?.classList.toggle('toggle--on');
     });
 
-    if (screen === 'profile') renderProfile(state.currentUser.id);
+    // Админ-панель
+    bindTabs($('.admin-nav'), 'admin', 'admin-nav__item--active', (v) => { state.adminTab = v; renderAdmin(); });
+  }
+
+  // Клик в профиле или карточке пользователя: «Написать» открывает ЛС, иначе — профиль
+  function onUserClick(e) {
+    const writeBtn = e.target.closest('[data-write-to]');
+    if (writeBtn) return openDm(+writeBtn.dataset.writeTo);
+    const card = e.target.closest('[data-user-id]');
+    if (card) navigate('profile', +card.dataset.userId);
+  }
+
+  // Открыть личный чат с пользователем
+  function openDm(userId) {
+    const dm = DATA.chats.find(c => c.type === 'dm' && c.userId === userId);
+    if (!dm) return;
+    navigate('main');
+    selectChat(dm.id);
+  }
+
+  // ── Навигация ───────────────────────────────────────────
+  // Показать экран screen (main, search, clubs, settings, admin, profile) и отрисовать его
+  function navigate(screen, profileId = state.user.id) {
+    state.screen = screen;
+    state.profileId = screen === 'profile' ? profileId : null;
+    $$('.screen').forEach(s => s.classList.toggle('screen--active', s.id === `screen-${screen}`));
+    $$('.topnav__item').forEach(b => b.classList.toggle('topnav__item--active', b.dataset.nav === screen));
+
+    if (screen === 'profile') renderProfile(profileId);
     if (screen === 'search') renderSearchResults();
     if (screen === 'clubs') renderClubs();
     if (screen === 'settings') renderSettings();
     if (screen === 'admin') renderAdmin();
   }
 
-  // ── Тема ─────────────────────────────────────────
-  function toggleTheme() {
-    state.theme = state.theme === 'light' ? 'dark' : 'light';
-    applyTheme(state.theme);
-    localStorage.setItem('studnet-theme', state.theme);
+  // ── Тема ────────────────────────────────────────────────
+  // Текущая тема (ставится ещё в <head> index.html) и её смена с запоминанием
+  const theme = () => document.documentElement.dataset.theme;
+
+  function setTheme(value) {
+    document.documentElement.dataset.theme = value;
+    localStorage.setItem('studnet-theme', value);
   }
 
-  function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-  }
-
-  // ── Чаты ─────────────────────────────────────────
+  // ── Чаты ────────────────────────────────────────────────
+  // Кнопки-фильтры над списком чатов: «Все», «Канал», «Группа»…
   function renderChatFilters() {
-    const container = $('#chat-type-filters');
-    const types = [{ key: 'all', label: 'Все' }, ...Object.entries(MOCK_DATA.chatTypes).map(([key, val]) => ({ key, label: val.label }))];
+    const types = [['all', 'Все'], ...Object.entries(DATA.chatTypes).map(([key, t]) => [key, t.label])];
+    $('#chat-type-filters').innerHTML = types.map(([key, label]) => `
+      <button class="chat-filter ${state.chatFilter === key ? 'chat-filter--active' : ''}" data-filter="${key}">${label}</button>
+    `).join('');
+  }
 
-    container.innerHTML = types.map(t => `
-      <button class="chat-filter ${state.chatFilter === t.key ? 'chat-filter--active' : ''}" data-filter="${t.key}">${t.label}</button>
+  // Список чатов слева (с учётом фильтра). Если чат ещё не выбран — открываем первый
+  function renderChatList() {
+    const chats = DATA.chats.filter(c => state.chatFilter === 'all' || c.type === state.chatFilter);
+
+    $('#chat-list').innerHTML = chats.map(chat => `
+      <div class="chat-item ${state.activeChatId === chat.id ? 'chat-item--active' : ''}" data-chat-id="${chat.id}">
+        <div class="chat-item__avatar avatar-wrap">
+          ${chat.avatar
+            ? `<img src="${chat.avatar}" class="avatar avatar--md" alt="">`
+            : `<div class="avatar avatar--md" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:var(--bg-hover)">${chat.icon || '💬'}</div>`}
+        </div>
+        <div class="chat-item__body">
+          <div class="chat-item__top">
+            <span class="chat-item__name">${chat.name}</span>
+            <span class="chat-item__time">${chat.lastTime}</span>
+          </div>
+          <div class="chat-item__preview">${chat.lastMessage}</div>
+          <div class="chat-item__meta">
+            <span class="chat-type chat-type--${chat.type}">${DATA.chatTypes[chat.type].label}</span>
+            ${chat.unread ? `<span class="badge badge--unread">${chat.unread}</span>` : ''}
+          </div>
+        </div>
+      </div>
     `).join('');
 
-    container.querySelectorAll('.chat-filter').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.chatFilter = btn.dataset.filter;
-        renderChatFilters();
-        renderChatList();
-      });
-    });
+    if (!state.activeChatId && chats.length) selectChat(chats[0].id);
   }
 
-  // ── Список чатов ─────────────────────────────────────────
-  function renderChatList() {
-    const container = $('#chat-list');
-    let chats = MOCK_DATA.chats;
+  // Можно ли писать в чат: в каналы (readonly) — только преподавателям
+  const canWrite = (chat) => !DATA.chatTypes[chat.type].readonly || state.user.role === 'teacher';
 
-    if (state.chatFilter !== 'all') {
-      chats = chats.filter(c => c.type === state.chatFilter);
-    }
-
-    container.innerHTML = chats.map(chat => {
-      const typeInfo = MOCK_DATA.chatTypes[chat.type];
-      const avatar = chat.avatar
-        ? `<img src="${chat.avatar}" class="avatar avatar--md" alt="">`
-        : `<div class="avatar avatar--md" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:var(--bg-hover)">${chat.icon || '💬'}</div>`;
-
-      return `
-        <div class="chat-item ${state.activeChatId === chat.id ? 'chat-item--active' : ''}" data-chat-id="${chat.id}">
-          <div class="chat-item__avatar avatar-wrap">
-            ${avatar}
-          </div>
-          <div class="chat-item__body">
-            <div class="chat-item__top">
-              <span class="chat-item__name">${chat.name}</span>
-              <span class="chat-item__time">${chat.lastTime}</span>
-            </div>
-            <div class="chat-item__preview">${chat.lastMessage}</div>
-            <div class="chat-item__meta">
-              <span class="chat-type chat-type--${chat.type}">${typeInfo.label}</span>
-              ${chat.unread ? `<span class="badge badge--unread">${chat.unread}</span>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    container.querySelectorAll('.chat-item').forEach(item => {
-      item.addEventListener('click', () => selectChat(+item.dataset.chatId));
-    });
-
-    if (!state.activeChatId && chats.length) {
-      selectChat(chats[0].id);
-    }
-  }
-
-  // ── Выбор чата ─────────────────────────────────────────
+  // Открыть чат: заголовок, поле ввода (или «только чтение»), сообщения и панель справа
   async function selectChat(chatId) {
-    state.activeChatId = chatId;
-    const chat = MOCK_DATA.chats.find(c => c.id === chatId);
+    const chat = chatById(chatId);
     if (!chat) return;
-
+    state.activeChatId = chatId;
     renderChatList();
 
-    const typeInfo = MOCK_DATA.chatTypes[chat.type];
-    const canWrite = canWriteInChat(chat);
+    const label = DATA.chatTypes[chat.type].label;
     $('#chat-title').textContent = chat.name;
-    $('#chat-meta').textContent = `${typeInfo.label} · ${chat.members} участников`;
+    $('#chat-meta').textContent = `${label} · ${chat.members} участников`;
 
-    updateChatInput(canWrite, chat.type);
+    const writable = canWrite(chat);
+    const area = $('#chat-input-area');
+    area.classList.toggle('chat-input--readonly', !writable);
+    area.classList.toggle('chat-input--writable', writable);
+    $('#chat-readonly-notice').hidden = writable;
+    $('#chat-input-form').hidden = !writable;
+    $('#message-input').disabled = $('#send-message').disabled = !writable;
+    if (!writable) $('#message-input').value = '';
 
-    const messages = await API.getMessages(chatId);
-    renderMessages(messages, chat);
+    renderMessages(await API.messages(chatId));
 
-    renderChatInfo(chat);
-  }
-
-  // ── Сообщения ─────────────────────────────────────────
-  function renderMessages(messages, chat) {
-    const container = $('#chat-messages');
-    const currentUserId = state.currentUser?.id;
-
-    if (!messages.length) {
-      container.innerHTML = '<div class="empty-state"><p>Нет сообщений. Начните общение!</p></div>';
-      return;
-    }
-
-    container.innerHTML = messages.map(msg => {
-      const user = MOCK_DATA.users.find(u => u.id === msg.userId);
-      const isOwn = msg.userId === currentUserId;
-      const reactions = (msg.reactions || []).map(r =>
-        `<span class="reaction">${r.emoji} ${r.count}</span>`
-      ).join('');
-
-      return `
-        <div class="message ${isOwn ? 'message--own' : ''}">
-          ${!isOwn ? `<img src="${user?.avatar}" class="avatar avatar--sm message__avatar" alt="">` : ''}
-          <div class="message__bubble">
-            ${!isOwn ? `<div class="message__author">${user?.name || 'Неизвестный'}</div>` : ''}
-            <div class="message__text">${msg.text}</div>
-            <div class="message__time">${msg.time}</div>
-            ${reactions ? `<div class="reactions">${reactions}</div>` : ''}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    container.scrollTop = container.scrollHeight;
-  }
-
-  // ── Информация о чате ─────────────────────────────────────────
-  function renderChatInfo(chat) {
-    const empty = $('.chat-info__empty');
-    const content = $('#chat-info-content');
-    empty.hidden = true;
-    content.hidden = false;
-
-    const typeInfo = MOCK_DATA.chatTypes[chat.type];
-    const members = MOCK_DATA.users.slice(0, 5);
-
-    content.innerHTML = `
+    // Панель справа: описание чата и участники
+    $('.chat-info__empty').hidden = true;
+    $('#chat-info-content').hidden = false;
+    $('#chat-info-content').innerHTML = `
       <div class="chat-info__title">${chat.name}</div>
-      <span class="chat-type chat-type--${chat.type}">${typeInfo.label}</span>
+      <span class="chat-type chat-type--${chat.type}">${label}</span>
       <p class="chat-info__desc">${chat.description}</p>
       <div class="chat-info__section">
         <h4>Участники (${chat.members})</h4>
         <div class="member-list">
-          ${members.map(u => `
+          ${DATA.users.slice(0, 5).map(u => `
             <div class="member-item" data-user-id="${u.id}">
               <div class="avatar-wrap">
                 <img src="${u.avatar}" class="avatar avatar--xs" alt="">
-                <span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span>
+                ${dot(u)}
               </div>
               <div>
                 <div class="member-item__name">${u.name}</div>
@@ -363,79 +323,57 @@
         </div>
       </div>
     `;
-
-    content.querySelectorAll('.member-item').forEach(item => {
-      item.addEventListener('click', () => {
-        navigate('profile');
-        renderProfile(+item.dataset.userId);
-      });
-    });
   }
 
-  // ── Можно ли писать в чат ─────────────────────────────────────────
-  function canWriteInChat(chat) {
-    const typeInfo = MOCK_DATA.chatTypes[chat.type];
-    if (!typeInfo.readonly) return true;
-    return state.currentUser?.role === 'teacher';
-  }
-
-  // ── Обновление ввода в чат ─────────────────────────────────────────
-  function updateChatInput(canWrite, chatType) {
-    const area = $('#chat-input-area');
-    const notice = $('#chat-readonly-notice');
-    const form = $('#chat-input-form');
-    const input = $('#message-input');
-    const sendBtn = $('#send-message');
-
-    area.classList.toggle('chat-input--readonly', !canWrite);
-    area.classList.toggle('chat-input--writable', canWrite);
-
-    if (!canWrite) {
-      notice.hidden = false;
-      form.hidden = true;
-      input.disabled = true;
-      sendBtn.disabled = true;
-      input.value = '';
-    } else {
-      notice.hidden = true;
-      form.hidden = false;
-      input.disabled = false;
-      sendBtn.disabled = false;
-      input.placeholder = chatType === 'dm' ? 'Написать сообщение…' : 'Написать сообщение…';
+  // Сообщения в центре; свои — справа, без аватарки
+  function renderMessages(messages) {
+    const container = $('#chat-messages');
+    if (!messages.length) {
+      container.innerHTML = '<div class="empty-state"><p>Нет сообщений. Начните общение!</p></div>';
+      return;
     }
+
+    container.innerHTML = messages.map(msg => {
+      const user = userById(msg.userId);
+      const isOwn = msg.userId === state.user.id;
+      const reactions = (msg.reactions || []).map(r => `<span class="reaction">${r.emoji} ${r.count}</span>`).join('');
+      return `
+        <div class="message ${isOwn ? 'message--own' : ''}">
+          ${isOwn ? '' : `<img src="${user?.avatar}" class="avatar avatar--sm message__avatar" alt="">`}
+          <div class="message__bubble">
+            ${isOwn ? '' : `<div class="message__author">${user?.name || 'Неизвестный'}</div>`}
+            <div class="message__text">${msg.text}</div>
+            <div class="message__time">${msg.time}</div>
+            ${reactions ? `<div class="reactions">${reactions}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
   }
 
-  // ── Отправка сообщения ─────────────────────────────────────────
+  // Отправка сообщения из поля ввода (кнопка или Enter)
   async function sendMessage() {
     const input = $('#message-input');
     const text = input.value.trim();
-    if (!text || !state.activeChatId || !state.currentUser) return;
+    if (!text || !state.activeChatId) return;
 
-    const chat = MOCK_DATA.chats.find(c => c.id === state.activeChatId);
-    if (!chat || !canWriteInChat(chat)) return;
-
-    const result = await API.sendMessage(
-      state.activeChatId,
-      state.currentUser.id,
-      text,
-      state.currentUser.role
-    );
-    if (result?.error) return;
-
+    try {
+      await API.sendMessage(state.activeChatId, text);
+    } catch (err) {
+      return alert(err.message);
+    }
     input.value = '';
-    const messages = await API.getMessages(state.activeChatId);
-    renderMessages(messages, chat);
+    renderMessages(await API.messages(state.activeChatId));
   }
 
-  // ── Профиль ───────────────────────────────────────
+  // ── Профиль ─────────────────────────────────────────────
+  // Профиль пользователя; у чужого профиля есть кнопка «Написать»
   function renderProfile(userId) {
-    const user = MOCK_DATA.users.find(u => u.id === userId);
+    const user = userById(userId);
     if (!user) return;
 
-    const isOwn = user.id === state.currentUser?.id;
-    const container = $('#profile-content');
-
-    container.innerHTML = `
+    $('#profile-content').innerHTML = `
       <div class="profile-header">
         <div class="avatar-wrap">
           <img src="${user.avatar}" class="avatar avatar--xl" alt="${user.name}">
@@ -444,103 +382,55 @@
         <div class="profile-header__info">
           <h1 class="profile-header__name">${user.name}</h1>
           <p class="profile-header__meta">${user.group}${user.course ? ` · ${user.course} курс` : ''} · ${user.direction}</p>
-          <div class="profile-header__status">
-            <span class="status-dot ${user.online ? 'status-dot--online' : ''}"></span>
-            ${user.online ? 'В сети' : 'Не в сети'}
-          </div>
-          ${!isOwn ? `<button class="btn btn--primary" style="margin-top:16px" data-write-to="${user.id}">Написать</button>` : ''}
+          <div class="profile-header__status">${dot(user)} ${user.online ? 'В сети' : 'Не в сети'}</div>
+          ${user.id === state.user.id ? '' : `<button class="btn btn--primary" style="margin-top:16px" data-write-to="${user.id}">Написать</button>`}
         </div>
       </div>
       ${user.bio ? `<div class="profile-section"><h3>О себе</h3><p>${user.bio}</p></div>` : ''}
-      ${user.interests.length ? `
-        <div class="profile-section">
-          <h3>Интересы</h3>
-          <div class="tag-list">${user.interests.map(i => `<span class="tag">${i}</span>`).join('')}</div>
-        </div>
-      ` : ''}
+      ${user.interests.length ? `<div class="profile-section"><h3>Интересы</h3><div class="tag-list">${tags(user.interests)}</div></div>` : ''}
     `;
-
-    container.querySelector('[data-write-to]')?.addEventListener('click', () => {
-      const dmChat = MOCK_DATA.chats.find(c => c.type === 'dm' && c.userId === userId);
-      if (dmChat) {
-        navigate('main');
-        selectChat(dmChat.id);
-      }
-    });
   }
 
-  // ── Поиск ────────────────────────────────────────
-  async function renderSearchResults() {
-    const filters = {
-      group: $('#filter-group').value,
-      direction: $('#filter-direction').value,
-      course: $('#filter-course').value,
-      online: $('#filter-online').checked || undefined,
-    };
+  // ── Поиск ───────────────────────────────────────────────
+  // Карточки людей по фильтрам слева (себя не показываем). Группы сравниваем без учёта регистра
+  function renderSearchResults() {
+    const group = $('#filter-group').value.toLowerCase();
+    const direction = $('#filter-direction').value;
+    const course = +$('#filter-course').value;
+    const online = $('#filter-online').checked;
 
-    const users = await API.getUsers(filters);
-    const filtered = users.filter(u => u.id !== state.currentUser?.id);
+    const users = DATA.users.filter(u =>
+      u.id !== state.user.id &&
+      (!group || u.group.toLowerCase() === group) &&
+      (!direction || u.direction === direction) &&
+      (!course || u.course === course) &&
+      (!online || u.online)
+    );
 
-    $('#search-count').textContent = filtered.length;
-
-    $('#user-cards').innerHTML = filtered.map(u => `
+    $('#search-count').textContent = users.length;
+    $('#user-cards').innerHTML = users.map(u => `
       <div class="user-card card--hover" data-user-id="${u.id}">
         <div class="avatar-wrap">
           <img src="${u.avatar}" class="avatar avatar--lg" alt="">
-          <span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span>
+          ${dot(u)}
         </div>
         <div class="user-card__name">${u.name}</div>
         <div class="user-card__group">${u.group} · ${u.direction}</div>
-        ${u.interests.length ? `<div class="user-card__interests tag-list">${u.interests.slice(0, 3).map(i => `<span class="tag">${i}</span>`).join('')}</div>` : ''}
+        ${u.interests.length ? `<div class="user-card__interests tag-list">${tags(u.interests.slice(0, 3))}</div>` : ''}
         <button class="btn btn--secondary btn--sm" data-write-to="${u.id}">Написать</button>
       </div>
     `).join('');
-
-    $('#user-cards').querySelectorAll('[data-user-id]').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('[data-write-to]')) return;
-        renderProfile(+card.dataset.userId);
-        navigate('profile');
-      });
-    });
-
-    $('#user-cards').querySelectorAll('[data-write-to]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const userId = +btn.dataset.writeTo;
-        const dmChat = MOCK_DATA.chats.find(c => c.type === 'dm' && c.userId === userId);
-        if (dmChat) {
-          navigate('main');
-          selectChat(dmChat.id);
-        }
-      });
-    });
   }
 
-  // ── Сброс фильтров поиска ─────────────────────────────────────────
-  function resetSearchFilters() {
-    $('#filter-group').value = '';
-    $('#filter-direction').value = '';
-    $('#filter-course').value = '';
-    $('#filter-online').checked = false;
-    renderSearchResults();
-  }
-
-  // ── Клубы ─────────────────────────────────────────
+  // ── Клубы ───────────────────────────────────────────────
+  // Клубы: каталог карточек или страница выбранного клуба
   function renderClubs() {
-    if (state.selectedClubId) {
-      renderClubDetail(state.selectedClubId);
-      return;
-    }
+    const club = DATA.clubs.find(c => c.id === state.selectedClubId);
+    $('#clubs-catalog').hidden = !!club;
+    $('#clubs-detail').hidden = !club;
+    if (club) return renderClubDetail(club);
 
-    $('#clubs-catalog').hidden = false;
-    $('#clubs-detail').hidden = true;
-
-    let clubs = MOCK_DATA.clubs;
-    if (state.clubsView === 'mine') {
-      clubs = clubs.filter(c => c.joined);
-    }
-
+    const clubs = DATA.clubs.filter(c => state.clubsView !== 'mine' || c.joined);
     $('#club-cards').innerHTML = clubs.map(c => `
       <div class="club-card" data-club-id="${c.id}">
         <div class="club-card__banner">${c.emoji}</div>
@@ -554,26 +444,10 @@
         </div>
       </div>
     `).join('');
-
-    $('#club-cards').querySelectorAll('.club-card').forEach(card => {
-      card.addEventListener('click', () => {
-        state.selectedClubId = +card.dataset.clubId;
-        renderClubDetail(state.selectedClubId);
-      });
-    });
   }
 
-  // ── Подробная информация о клубе ─────────────────────────────────────────
-  function renderClubDetail(clubId) {
-    const club = MOCK_DATA.clubs.find(c => c.id === clubId);
-    if (!club) return;
-
-    $('#clubs-catalog').hidden = true;
-    $('#clubs-detail').hidden = false;
-
-    const members = MOCK_DATA.users.slice(0, 4);
-    const clubMessages = MOCK_DATA.messages[2] || [];
-
+  // Страница клуба: шапка, вкладки «Участники» / «Чат клуба»
+  function renderClubDetail(club) {
     $('#club-detail-content').innerHTML = `
       <div class="club-detail-header">
         <div class="club-detail-banner">${club.emoji}</div>
@@ -592,143 +466,92 @@
       </div>
 
       <div class="club-detail-tabs">
-        <button class="club-detail-tab club-detail-tab--active" data-club-tab="members">Участники</button>
+        <button class="club-detail-tab" data-club-tab="members">Участники</button>
         <button class="club-detail-tab" data-club-tab="chat">Чат клуба</button>
       </div>
 
-      <div id="club-tab-content">
-        <div class="club-members-grid">
-          ${members.map(u => `
-            <div class="club-member">
-              <div class="avatar-wrap">
-                <img src="${u.avatar}" class="avatar avatar--sm" alt="">
-                <span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span>
-              </div>
-              <div>
-                <div style="font-weight:500;font-size:0.9rem">${u.name}</div>
-                <div style="font-size:0.8rem;color:var(--text-muted)">${u.group}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
+      <div id="club-tab-content"></div>
     `;
-
-    $$('.club-detail-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        $$('.club-detail-tab').forEach(t => t.classList.toggle('club-detail-tab--active', t === tab));
-        const content = $('#club-tab-content');
-
-        if (tab.dataset.clubTab === 'chat') {
-          content.innerHTML = `
-            <div class="club-chat-preview">
-              ${clubMessages.map(msg => {
-                const user = MOCK_DATA.users.find(u => u.id === msg.userId);
-                return `
-                  <div class="message" style="max-width:100%;margin-bottom:12px">
-                    <img src="${user?.avatar}" class="avatar avatar--xs message__avatar" alt="">
-                    <div class="message__bubble">
-                      <div class="message__author">${user?.name}</div>
-                      <div class="message__text">${msg.text}</div>
-                      <div class="message__time">${msg.time}</div>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-            <div class="chat-input__form" style="margin-top:12px">
-              <input type="text" placeholder="Написать в чат клуба…" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg)">
-              <button class="btn btn--primary btn--icon">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/></svg>
-              </button>
-            </div>
-          `;
-        } else {
-          content.innerHTML = `
-            <div class="club-members-grid">
-              ${members.map(u => `
-                <div class="club-member">
-                  <div class="avatar-wrap">
-                    <img src="${u.avatar}" class="avatar avatar--sm" alt="">
-                    <span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span>
-                  </div>
-                  <div>
-                    <div style="font-weight:500;font-size:0.9rem">${u.name}</div>
-                    <div style="font-size:0.8rem;color:var(--text-muted)">${u.group}</div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          `;
-        }
-      });
-    });
+    markTab($('#club-detail-content'), 'club-tab', 'club-detail-tab--active', state.clubTab);
+    renderClubTab();
   }
 
-  // ── Настройки ──────────────────────────────────────
-  function renderSettings() {
-    const user = state.currentUser;
-    if (!user) return;
+  // Содержимое открытой вкладки клуба: участники или чат
+  async function renderClubTab() {
+    const club = DATA.clubs.find(c => c.id === state.selectedClubId);
+    if (state.clubTab !== 'chat') {
+      $('#club-tab-content').innerHTML = clubMembers(club);
+      return;
+    }
+    $('#club-tab-content').innerHTML = clubChat(await API.clubMessages(club.id));
+    const box = $('.club-chat-preview');
+    box.scrollTop = box.scrollHeight; // прокручиваем к последним сообщениям
+  }
 
-    const panels = {
-      profile: `
-        <h3>Профиль</h3>
-        <div class="field"><label>Имя</label><input type="text" value="${user.name}"></div>
-        <div class="field"><label>Email</label><input type="email" value="${user.email}"></div>
-        <div class="field"><label>Группа</label><input type="text" value="${user.group}" disabled></div>
-        <div class="field"><label>О себе</label><textarea rows="3">${user.bio || ''}</textarea></div>
-        <button class="btn btn--primary">Сохранить</button>
-      `,
-      notifications: `
-        <h3>Уведомления</h3>
-        ${settingsToggle('Новые сообщения', 'Уведомления о входящих сообщениях', true)}
-        ${settingsToggle('Упоминания', 'Когда вас упоминают в чате', true)}
-        ${settingsToggle('Объявления', 'Объявления от преподавателей', true)}
-        ${settingsToggle('Клубы', 'Новости и события клубов', false)}
-        ${settingsToggle('Email-рассылка', 'Дублировать важные уведомления на email', false)}
-      `,
-      appearance: `
-        <h3>Внешний вид</h3>
-        <div class="field">
-          <label>Тема оформления</label>
-          <div class="theme-picker">
-            <div class="theme-option ${state.theme === 'light' ? 'theme-option--active' : ''}" data-set-theme="light">
-              <div class="theme-option__preview theme-option__preview--light"></div>
-              <span>Светлая</span>
+  // Отправить сообщение в чат открытого клуба
+  async function sendClubMessage() {
+    const text = $('#club-message-input').value.trim();
+    if (!text) return;
+    try {
+      await API.sendClubMessage(state.selectedClubId, text);
+    } catch (err) {
+      return alert(err.message);
+    }
+    await renderClubTab();
+    $('#club-message-input').focus();
+  }
+
+  // Вкладка «Участники» клуба — у каждого клуба свой список (memberIds)
+  function clubMembers(club) {
+    return `
+      <div class="club-members-grid">
+        ${club.memberIds.map(userById).filter(Boolean).map(u => `
+          <div class="club-member">
+            <div class="avatar-wrap">
+              <img src="${u.avatar}" class="avatar avatar--sm" alt="">
+              ${dot(u)}
             </div>
-            <div class="theme-option ${state.theme === 'dark' ? 'theme-option--active' : ''}" data-set-theme="dark">
-              <div class="theme-option__preview theme-option__preview--dark"></div>
-              <span>Тёмная</span>
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">${u.name}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted)">${u.group}</div>
             </div>
           </div>
-        </div>
-        ${settingsToggle('Компактный режим', 'Уменьшенные отступы в чатах', false)}
-      `,
-      privacy: `
-        <h3>Приватность</h3>
-        ${settingsToggle('Показывать статус онлайн', 'Другие пользователи видят, что вы в сети', true)}
-        ${settingsToggle('Показывать группу', 'Группа видна в профиле', true)}
-        ${settingsToggle('Разрешить сообщения', 'Любой студент может написать вам', true)}
-      `,
-    };
-
-    $('#settings-content').innerHTML = panels[state.settingsTab] || '';
-
-    $('#settings-content').querySelectorAll('[data-set-theme]').forEach(opt => {
-      opt.addEventListener('click', () => {
-        state.theme = opt.dataset.setTheme;
-        applyTheme(state.theme);
-        localStorage.setItem('studnet-theme', state.theme);
-        renderSettings();
-      });
-    });
-
-    $('#settings-content').querySelectorAll('.toggle').forEach(toggle => {
-      toggle.addEventListener('click', () => toggle.classList.toggle('toggle--on'));
-    });
+        `).join('')}
+      </div>
+    `;
   }
 
-  function settingsToggle(label, desc, on) {
+  // Вкладка «Чат клуба» — у каждого клуба свои сообщения
+  function clubChat(messages) {
+    return `
+      <div class="club-chat-preview">
+        ${messages.length ? '' : '<div class="empty-state"><p>Пока никто не писал. Будьте первым!</p></div>'}
+        ${messages.map(msg => {
+          const user = userById(msg.userId);
+          return `
+            <div class="message" style="max-width:100%;margin-bottom:12px">
+              <img src="${user?.avatar}" class="avatar avatar--xs message__avatar" alt="">
+              <div class="message__bubble">
+                <div class="message__author">${user?.name}</div>
+                <div class="message__text">${msg.text}</div>
+                <div class="message__time">${msg.time}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="chat-input__form" style="margin-top:12px">
+        <input type="text" id="club-message-input" placeholder="Написать в чат клуба…" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg)">
+        <button class="btn btn--primary btn--icon" data-club-send>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  // ── Настройки ───────────────────────────────────────────
+  // Строка настроек с переключателем
+  function toggleRow(label, desc, on) {
     return `
       <div class="settings-row">
         <div class="settings-row__info">
@@ -740,107 +563,139 @@
     `;
   }
 
-  // ── Админ-панель ─────────────────────────────────────────
-  async function renderAdmin() {
-    const stats = await API.getAdminStats();
-    const users = await API.getAdminUsers();
+  // Карточка выбора темы (светлая / тёмная)
+  function themeOption(value, label) {
+    return `
+      <div class="theme-option ${theme() === value ? 'theme-option--active' : ''}" data-set-theme="${value}">
+        <div class="theme-option__preview theme-option__preview--${value}"></div>
+        <span>${label}</span>
+      </div>
+    `;
+  }
 
+  // Настройки: содержимое выбранной вкладки слева
+  function renderSettings() {
+    const user = state.user;
     const panels = {
-      dashboard: `
-        <h3>Обзор</h3>
-        <div class="stat-grid">
-          <div class="stat"><div class="stat__value">${stats.totalUsers}</div><div class="stat__label">Пользователей</div></div>
-          <div class="stat"><div class="stat__value">${stats.onlineNow}</div><div class="stat__label">Онлайн сейчас</div></div>
-          <div class="stat"><div class="stat__value">${stats.activeChats}</div><div class="stat__label">Активных чатов</div></div>
-          <div class="stat"><div class="stat__value">${stats.pendingReports}</div><div class="stat__label">Жалоб</div></div>
-        </div>
+      profile: () => `
+        <h3>Профиль</h3>
+        <div class="field"><label>Имя</label><input type="text" value="${user.name}"></div>
+        <div class="field"><label>Email</label><input type="email" value="${user.email}"></div>
+        <div class="field"><label>Группа</label><input type="text" value="${user.group}" disabled></div>
+        <div class="field"><label>О себе</label><textarea rows="3">${user.bio || ''}</textarea></div>
+        <button class="btn btn--primary">Сохранить</button>
       `,
-      channels: `
-        <h3>Каналы</h3>
-        <div class="admin-actions">
-          <button class="btn btn--primary">Создать канал</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Название</th><th>Тип</th><th>Подписчиков</th><th>Действия</th></tr></thead>
-            <tbody>
-              ${MOCK_DATA.chats.filter(c => c.type === 'channel').map(c => `
-                <tr>
-                  <td>${c.name}</td>
-                  <td><span class="chat-type chat-type--channel">Канал</span></td>
-                  <td>${c.members}</td>
-                  <td><button class="btn btn--ghost btn--sm">Редактировать</button></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+      notifications: () => `
+        <h3>Уведомления</h3>
+        ${toggleRow('Новые сообщения', 'Уведомления о входящих сообщениях', true)}
+        ${toggleRow('Упоминания', 'Когда вас упоминают в чате', true)}
+        ${toggleRow('Объявления', 'Объявления от преподавателей', true)}
+        ${toggleRow('Клубы', 'Новости и события клубов', false)}
+        ${toggleRow('Email-рассылка', 'Дублировать важные уведомления на email', false)}
       `,
-      users: `
-        <h3>Пользователи</h3>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Имя</th><th>Email</th><th>Группа</th><th>Роль</th><th>Статус</th></tr></thead>
-            <tbody>
-              ${users.map(u => `
-                <tr>
-                  <td>${u.name}</td>
-                  <td>${u.email}</td>
-                  <td>${u.group}</td>
-                  <td>${u.role === 'teacher' ? 'Преподаватель' : 'Студент'}</td>
-                  <td><span class="status-dot ${u.online ? 'status-dot--online' : ''}"></span> ${u.online ? 'Онлайн' : 'Офлайн'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+      appearance: () => `
+        <h3>Внешний вид</h3>
+        <div class="field">
+          <label>Тема оформления</label>
+          <div class="theme-picker">${themeOption('light', 'Светлая')}${themeOption('dark', 'Тёмная')}</div>
         </div>
+        ${toggleRow('Компактный режим', 'Уменьшенные отступы в чатах', false)}
       `,
-      moderation: `
-        <h3>Модерация</h3>
-        <div class="card" style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <strong>Жалоба #142</strong>
-              <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">Спам в чате «Флудилка» · 2 часа назад</p>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn--ghost btn--sm">Отклонить</button>
-              <button class="btn btn--primary btn--sm">Заблокировать</button>
-            </div>
-          </div>
-        </div>
-        <div class="card" style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <strong>Жалоба #141</strong>
-              <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">Оскорбление в ЛС · 5 часов назад</p>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn--ghost btn--sm">Отклонить</button>
-              <button class="btn btn--primary btn--sm">Заблокировать</button>
-            </div>
-          </div>
-        </div>
-      `,
-      announcements: `
-        <h3>Объявления</h3>
-        <div class="admin-actions">
-          <button class="btn btn--primary">Новое объявление</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Заголовок</th><th>Канал</th><th>Дата</th><th>Просмотры</th></tr></thead>
-            <tbody>
-              <tr><td>Расписание на следующую неделю</td><td>Объявления колледжа</td><td>12.09.2026</td><td>890</td></tr>
-              <tr><td>День открытых дверей</td><td>Объявления колледжа</td><td>10.09.2026</td><td>1240</td></tr>
-              <tr><td>Хакатон «CodeFest 2026»</td><td>Информационные системы</td><td>08.09.2026</td><td>456</td></tr>
-            </tbody>
-          </table>
-        </div>
+      privacy: () => `
+        <h3>Приватность</h3>
+        ${toggleRow('Показывать статус онлайн', 'Другие пользователи видят, что вы в сети', true)}
+        ${toggleRow('Показывать группу', 'Группа видна в профиле', true)}
+        ${toggleRow('Разрешить сообщения', 'Любой студент может написать вам', true)}
       `,
     };
+    $('#settings-content').innerHTML = panels[state.settingsTab]();
+  }
 
-    $('#admin-content').innerHTML = panels[state.adminTab] || '';
+  // ── Админ-панель ────────────────────────────────────────
+  // Жалобы и объявления пока примерные — в базе их нет
+  const REPORTS = [
+    ['#142', 'Спам в чате «Флудилка» · 2 часа назад'],
+    ['#141', 'Оскорбление в ЛС · 5 часов назад'],
+  ];
+
+  const ANNOUNCEMENTS = [
+    ['Расписание на следующую неделю', 'Объявления колледжа', '12.09.2026', 890],
+    ['День открытых дверей', 'Объявления колледжа', '10.09.2026', 1240],
+    ['Хакатон «CodeFest 2026»', 'Информационные системы', '08.09.2026', 456],
+  ];
+
+  // Таблица: заголовки + строки (каждая строка — массив ячеек)
+  function table(headers, rows) {
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // Админ-панель: содержимое выбранной вкладки (только для преподавателей)
+  async function renderAdmin() {
+    const stat = (value, label) => `<div class="stat"><div class="stat__value">${value}</div><div class="stat__label">${label}</div></div>`;
+    const action = (label) => `<div class="admin-actions"><button class="btn btn--primary">${label}</button></div>`;
+
+    const panels = {
+      dashboard: async () => {
+        const s = await API.adminStats();
+        return `
+          <h3>Обзор</h3>
+          <div class="stat-grid">
+            ${stat(s.totalUsers, 'Пользователей')}${stat(s.onlineNow, 'Онлайн сейчас')}
+            ${stat(s.activeChats, 'Активных чатов')}${stat(s.pendingReports, 'Жалоб')}
+          </div>
+        `;
+      },
+      channels: async () => `
+        <h3>Каналы</h3>
+        ${action('Создать канал')}
+        ${table(['Название', 'Тип', 'Подписчиков', 'Действия'], DATA.chats.filter(c => c.type === 'channel').map(c => [
+          c.name,
+          '<span class="chat-type chat-type--channel">Канал</span>',
+          c.members,
+          '<button class="btn btn--ghost btn--sm">Редактировать</button>',
+        ]))}
+      `,
+      users: async () => `
+        <h3>Пользователи</h3>
+        ${table(['Имя', 'Email', 'Группа', 'Роль', 'Статус'], DATA.users.map(u => [
+          u.name,
+          u.email,
+          u.group,
+          u.role === 'teacher' ? 'Преподаватель' : 'Студент',
+          `${dot(u)} ${u.online ? 'Онлайн' : 'Офлайн'}`,
+        ]))}
+      `,
+      moderation: async () => `
+        <h3>Модерация</h3>
+        ${REPORTS.map(([id, desc]) => `
+          <div class="card" style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong>Жалоба ${id}</strong>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px">${desc}</p>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn--ghost btn--sm">Отклонить</button>
+                <button class="btn btn--primary btn--sm">Заблокировать</button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      `,
+      announcements: async () => `
+        <h3>Объявления</h3>
+        ${action('Новое объявление')}
+        ${table(['Заголовок', 'Канал', 'Дата', 'Просмотры'], ANNOUNCEMENTS)}
+      `,
+    };
+    $('#admin-content').innerHTML = await panels[state.adminTab]();
   }
 
 })();

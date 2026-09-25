@@ -1,139 +1,160 @@
 /**
- * API — слой подключения к базе данных
- * =====================================
- * Сейчас используются mock-данные из data.js.
- * Для подключения реальной БД замените методы ниже на fetch() к вашему backend.
+ * API — откуда интерфейс берёт данные.
  *
- * Пример подключения (PHP + MySQL):
- *   const res = await fetch('/api/users.php');
- *   return res.json();
+ * Два режима, выбираются сами:
+ *  - сервер запущен (в папке back: go run .) — данные из базы SQLite через запросы /api/...;
+ *  - сервера нет — данные из js/data.js (LOCAL ниже), всё работает прямо в браузере.
+ *    Отправленные сообщения в этом режиме живут до обновления страницы.
  *
- * Пример подключения (Node.js + SQLite):
- *   const res = await fetch('http://localhost:3000/api/users');
- *   return res.json();
+ * Токен входа хранится в sessionStorage: он переживает обновление страницы,
+ * но стирается при закрытии вкладки — тогда снова нужно ввести код.
  */
 
 const API = {
-  /** Базовый URL вашего API — измените при деплое */
-  baseUrl: '/api',
+  TOKEN_KEY: 'studnet-token',
 
-  /**
-   * Универсальный запрос к серверу
-   * @param {string} endpoint — путь, напр. '/users'
-   * @param {object} options — fetch options
-   */
-  async request(endpoint, options = {}) {
-    // TODO: раскомментируйте для реального API
-    // const res = await fetch(`${this.baseUrl}${endpoint}`, {
-    //   headers: { 'Content-Type': 'application/json' },
-    //   ...options,
-    // });
-    // if (!res.ok) throw new Error(`API error: ${res.status}`);
-    // return res.json();
+  // Адрес сервера. Если сайт открыт самим сервером (порт 8080) — хватает '/api'.
+  // Иначе (Live Server, двойной щелчок по index.html) идём на сервер напрямую.
+  URL: location.port === '8080' ? '/api' : 'http://localhost:8080/api',
 
-    // Пока — mock через локальные данные
-    console.warn(`[API stub] ${options.method || 'GET'} ${endpoint}`);
-    return null;
-  },
+  // true — сервер не ответил, дальше сразу работаем с data.js
+  offline: false,
 
-  // ── Авторизация ──────────────────────────────────────────
-  async loginByCode(code) {
-    // return this.request('/auth/login', { method: 'POST', body: JSON.stringify({ code }) });
-    const normalized = code.trim();
-    const userId = MOCK_DATA.accessCodes[normalized];
-    if (!userId) {
-      return { success: false, error: 'Неверный код доступа. Обратитесь в IT-отдел колледжа.' };
+  // Запрос к серверу: без body — GET, с body — POST с JSON.
+  // Если сервер ответил ошибкой, бросает Error с её текстом (его можно показать пользователю).
+  // Если сервер вообще недоступен — Error с пометкой offline.
+  async request(path, body) {
+    let res, data;
+    try {
+      res = await fetch(this.URL + path, {
+        method: body ? 'POST' : 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + sessionStorage.getItem(this.TOKEN_KEY),
+        },
+        body: body && JSON.stringify(body),
+      });
+      data = await res.json();
+    } catch {
+      throw Object.assign(new Error('Нет связи с сервером'), { offline: true });
     }
-    const user = MOCK_DATA.users.find(u => u.id === userId);
-    if (!user) return { success: false, error: 'Аккаунт не найден' };
-    return { success: true, user };
+    if (!res.ok) throw new Error(data.error);
+    return data;
   },
 
-  // ── Пользователи ─────────────────────────────────────────
-  async getUsers(filters = {}) {
-    // return this.request(`/users?${new URLSearchParams(filters)}`);
-    let users = [...MOCK_DATA.users];
-    if (filters.group) users = users.filter(u => u.group === filters.group);
-    if (filters.direction) users = users.filter(u => u.direction === filters.direction);
-    if (filters.course) users = users.filter(u => u.course === +filters.course);
-    if (filters.online) users = users.filter(u => u.online);
-    return users;
-  },
-
-  // ── Получение пользователя ─────────────────────────────────────────
-  async getUser(id) {
-    // return this.request(`/users/${id}`);
-    return MOCK_DATA.users.find(u => u.id === id) || null;
-  },
-
-  // ── Чаты ─────────────────────────────────────────
-  async getChats(userId) {
-    // return this.request(`/chats?userId=${userId}`);
-    return MOCK_DATA.chats;
-  },
-
-  // ── Сообщения ─────────────────────────────────────────
-  async getMessages(chatId) {
-    // return this.request(`/chats/${chatId}/messages`);
-    return MOCK_DATA.messages[chatId] || [];
-  },
-
-  // ── Отправка сообщения ─────────────────────────────────────────
-  async sendMessage(chatId, userId, text, userRole) {
-    // return this.request(`/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ userId, text }) });
-    const chat = MOCK_DATA.chats.find(c => c.id === chatId);
-    if (chat) {
-      const typeInfo = MOCK_DATA.chatTypes[chat.type];
-      if (typeInfo.readonly && userRole !== 'teacher') {
-        return { error: 'Этот чат доступен только для чтения' };
+  // Сначала пробуем сервер (fromServer), а если его нет — берём данные из data.js (fromLocal)
+  async call(fromServer, fromLocal) {
+    if (!this.offline) {
+      try {
+        return await fromServer();
+      } catch (err) {
+        if (!err.offline) throw err; // сервер есть, но ответил ошибкой — показываем её
+        this.offline = true;
+        console.info('Сервер не найден — работаем с данными из data.js');
       }
     }
-    const msg = {
-      id: Date.now(),
-      chatId,
-      userId,
-      text,
-      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-      reactions: [],
-    };
-    if (!MOCK_DATA.messages[chatId]) MOCK_DATA.messages[chatId] = [];
-    MOCK_DATA.messages[chatId].push(msg);
-    return msg;
+    return fromLocal();
   },
 
-  // ── Клубы ─────────────────────────────────────────
-  async getClubs() {
-    // return this.request('/clubs');
-    return MOCK_DATA.clubs;
+  // Есть ли сохранённый токен (то есть вход уже был в этой вкладке)
+  hasToken() {
+    return !!sessionStorage.getItem(this.TOKEN_KEY);
   },
 
-  // ── Получение клуба ─────────────────────────────────────────
-  async getClub(id) {
-    // return this.request(`/clubs/${id}`);
-    return MOCK_DATA.clubs.find(c => c.id === id) || null;
+  // Вход по коду: сохраняем токен и возвращаем пользователя
+  async login(code) {
+    const { token, user } = await this.call(() => this.request('/login', { code }), () => LOCAL.login(code));
+    sessionStorage.setItem(this.TOKEN_KEY, token);
+    return user;
   },
 
-  // ── Админ-панель ─────────────────────────────────────────
-  async getAdminStats() {
-    // return this.request('/admin/stats');
-    return MOCK_DATA.adminStats;
+  // Выход: просим сервер забыть токен (ошибки игнорируем) и стираем его у себя
+  async logout() {
+    await this.call(() => this.request('/logout', {}), () => {}).catch(() => {});
+    sessionStorage.removeItem(this.TOKEN_KEY);
   },
 
-  // ── Получение пользователей для админ-панели ─────────────────────────────────────────
-  async getAdminUsers() {
-    // return this.request('/admin/users');
-    return MOCK_DATA.users;
+  // Текущий пользователь (проверка, что токен ещё действует)
+  me() {
+    return this.call(() => this.request('/me'), () => LOCAL.me());
   },
 
-  // ── Справочные данные ────────────────────────────────
-  async getGroups() {
-    // return this.request('/ref/groups');
-    return MOCK_DATA.groups;
+  // Все данные для интерфейса: пользователи, чаты, типы чатов, клубы, группы, направления
+  data() {
+    return this.call(async () => {
+      const d = await this.request('/data');
+      // С сервера приходят списки строк таблиц — приводим к тому же виду, что в data.js
+      d.chatTypes = Object.fromEntries(d.chatTypes.map(t => [t.type, t]));
+      d.groups = d.groups.map(g => g.name);
+      d.directions = d.directions.map(g => g.name);
+      return d;
+    }, () => MOCK_DATA);
   },
 
-  // ── Получение направлений ─────────────────────────────────────────
-  async getDirections() {
-    // return this.request('/ref/directions');
-    return MOCK_DATA.directions;
+  // Сообщения чата
+  messages(chatId) {
+    return this.call(() => this.request(`/chats/${chatId}/messages`), () => MOCK_DATA.messages[chatId] || []);
+  },
+
+  // Отправить сообщение в чат
+  sendMessage(chatId, text) {
+    return this.call(() => this.request(`/chats/${chatId}/messages`, { text }), () => LOCAL.sendMessage(chatId, text));
+  },
+
+  // Сообщения чата клуба (у каждого клуба свой чат)
+  clubMessages(clubId) {
+    return this.call(() => this.request(`/clubs/${clubId}/messages`), () => MOCK_DATA.clubMessages[clubId] || []);
+  },
+
+  // Написать в чат клуба
+  sendClubMessage(clubId, text) {
+    return this.call(() => this.request(`/clubs/${clubId}/messages`, { text }), () => LOCAL.sendClubMessage(clubId, text));
+  },
+
+  // Статистика для админ-панели (только преподаватели)
+  adminStats() {
+    return this.call(() => this.request('/admin/stats'), () => MOCK_DATA.adminStats);
+  },
+};
+
+/**
+ * LOCAL — то же самое, что делает сервер, но на данных из data.js.
+ * Используется, когда сервер не запущен.
+ */
+const LOCAL = {
+  // Вход по коду из MOCK_DATA.accessCodes. Токен вида «local-5», где 5 — id пользователя
+  login(code) {
+    const user = MOCK_DATA.users.find(u => u.id === MOCK_DATA.accessCodes[code.trim()]);
+    if (!user) throw new Error('Неверный код доступа. Обратитесь в IT-отдел колледжа.');
+    return { token: 'local-' + user.id, user };
+  },
+
+  // Пользователь по сохранённому токену
+  me() {
+    const token = sessionStorage.getItem(API.TOKEN_KEY) || '';
+    const user = token.startsWith('local-') && MOCK_DATA.users.find(u => u.id === +token.slice(6));
+    if (!user) throw new Error('Требуется вход');
+    return user;
+  },
+
+  // Добавить сообщение в чат (в каналы пишут только преподаватели)
+  sendMessage(chatId, text) {
+    const chat = MOCK_DATA.chats.find(c => c.id === chatId);
+    const user = this.me();
+    if (MOCK_DATA.chatTypes[chat.type].readonly && user.role !== 'teacher') {
+      throw new Error('Этот чат доступен только для чтения');
+    }
+    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    (MOCK_DATA.messages[chatId] ||= []).push({ id: Date.now(), userId: user.id, text, time, reactions: [] });
+    chat.lastMessage = text;
+    chat.lastTime = time;
+    return { ok: true };
+  },
+
+  // Добавить сообщение в чат клуба
+  sendClubMessage(clubId, text) {
+    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    (MOCK_DATA.clubMessages[clubId] ||= []).push({ id: Date.now(), userId: this.me().id, text, time, reactions: [] });
+    return { ok: true };
   },
 };

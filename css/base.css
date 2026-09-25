@@ -1,3 +1,6 @@
+/* base.css — общие стили: сброс отступов, body, экраны и иконки.
+   Здесь же правила, какой экран показывать: вход или приложение (класс .logged-in). */
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -60,7 +63,8 @@ body {
   min-height: 100vh;
 }
 
-body.auth-locked {
+/* Пока не вошли — страница не прокручивается */
+html:not(.logged-in) body {
   overflow: hidden;
   height: 100vh;
 }
@@ -103,7 +107,10 @@ img {
   display: block;
 }
 
-#screen-auth.screen--active {
+/* Что показывать, решает класс .logged-in на <html>.
+   Он ставится скриптом в <head> ещё до отрисовки — поэтому при
+   обновлении страницы окно входа не мелькает. */
+#screen-auth {
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -113,13 +120,12 @@ img {
 
 .app-shell {
   display: none;
-}
-
-.app-shell--visible {
-  display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
+
+.logged-in #screen-auth { display: none; }
+.logged-in .app-shell { display: flex; }
 
 .icon {
   width: 20px;
