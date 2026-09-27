@@ -270,8 +270,8 @@ const MOCK_DATA = {
     },
     {
       "id": 19,
-      "name": "Ольга Сидорова",
-      "email": "OlgaSidorova@oatk.ru",
+      "name": "Полина Игнатова",
+      "email": "PolinaIgnatova@oatk.ru",
       "avatar": "images/OlgaAvatar.jpg",
       "group": "ИСП343",
       "direction": "Информационные системы и программирование",
