@@ -205,8 +205,8 @@ const MOCK_DATA = {
     },
     {
       "id": 14,
-      "name": "Евгений Козлов",
-      "email": "EvgeniyKozlov@oatk.ru",
+      "name": "Евгений Шаров",
+      "email": "EvgeniySharov@oatk.ru",
       "avatar": "images/EvgeniyAvatar.jpg",
       "group": "Э1032",
       "direction": "Экономика и бухгалтерский учёт",
