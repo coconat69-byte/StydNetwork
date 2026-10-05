@@ -5,12 +5,23 @@
   <meta name="viewport" content="width=1440">
   <title>СтудСеть — соцсеть колледжа</title>
   <script>
-    // Выполняется до отрисовки: сразу ставим тему и нужный экран, чтобы ничего не мигало.
-    // Токен входа лежит в sessionStorage (см. js/api.js): переживает обновление страницы,
-    // но стирается при закрытии вкладки — тогда снова нужен код.
+    // Этот скрипт стоит в самом верху, ещё до стилей и отрисовки страницы.
+    // 1) Тема: берём светлую или тёмную из localStorage, чтобы не мигало.
+    // 2) Вход: если в этой вкладке уже входили, сразу ставим класс logged-in.
+    //    Токен лежит в sessionStorage: он живёт при обновлении страницы,
+    //    но пропадает, если вкладку закрыть — тогда снова нужен код доступа.
     document.documentElement.dataset.theme = localStorage.getItem('studnet-theme') || 'light';
-    if (sessionStorage.getItem('studnet-token')) document.documentElement.classList.add('logged-in');
+    if (sessionStorage.getItem('studnet-token')) {
+      document.documentElement.classList.add('logged-in');
+    }
   </script>
+  <!-- Эти правила здесь, а не в css/, чтобы экран входа не мелькал при обновлении.
+       Пока грузятся файлы стилей, браузер уже знает: показать форму или приложение. -->
+  <style>
+    .app-shell { display: none; }
+    html.logged-in #screen-auth { display: none !important; }
+    html.logged-in .app-shell { display: block; }
+  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

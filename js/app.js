@@ -42,10 +42,12 @@
   }
 
   function restoreState() {
+    const saved = sessionStorage.getItem(STATE_KEY);
+    if (!saved) return;
     try {
-      Object.assign(state, JSON.parse(sessionStorage.getItem(STATE_KEY)));
+      Object.assign(state, JSON.parse(saved));
     } catch {
-      // сохранённого нет или оно испорчено — остаёмся на значениях по умолчанию
+      // данные испорчены — оставляем обычные значения из state
     }
   }
 
@@ -61,7 +63,7 @@
   const chatById = (id) => DATA.chats.find(c => c.id === id);
   const clubById = (id) => DATA.clubs.find(c => c.id === id);
   const isTeacher = (user) => user.role === 'teacher';
-  const inClub = (club) => club.memberIds.includes(state.user.id);
+  const inClub = (club) => (club.memberIds || []).includes(state.user.id);
   const scrollToBottom = (el) => { el.scrollTop = el.scrollHeight; };
 
   // Настройки человека (переключатели на экране «Настройки»).
@@ -101,7 +103,7 @@
   }
 
   // Теги-интересы (пустые пропускаем)
-  const tags = (list) => list.filter(Boolean).map(i => `<span class="tag">${esc(i)}</span>`).join('');
+  const tags = (list) => (list || []).filter(Boolean).map(i => `<span class="tag">${esc(i)}</span>`).join('');
 
   // Иконки для кнопок «Написать» и «Отправить»
   const ICON_MESSAGE = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
@@ -531,7 +533,7 @@
         ${avatar(u, 'lg')}
         <div class="user-card__name">${esc(u.name)}</div>
         <div class="user-card__about">${esc(about(u))}</div>
-        <div class="tag-list">${tags(u.interests.slice(0, 3))}</div>
+        <div class="tag-list">${tags((u.interests || []).slice(0, 3))}</div>
         ${canMessage(u)
           ? `<button class="btn btn--secondary btn--sm btn--pill" data-write="${u.id}">${ICON_MESSAGE} Написать</button>`
           : '<span class="muted">Не принимает сообщения</span>'}
@@ -652,7 +654,7 @@
   // Подсказки: интересы других людей, самые популярные первыми (кроме уже выбранных)
   function suggestedInterests() {
     const count = {};
-    DATA.users.flatMap(u => u.interests).filter(Boolean).forEach(i => { count[i] = (count[i] || 0) + 1; });
+    DATA.users.flatMap(u => u.interests || []).filter(Boolean).forEach(i => { count[i] = (count[i] || 0) + 1; });
     const chosen = myInterests.map(i => i.toLowerCase());
     return Object.keys(count)
       .filter(i => !chosen.includes(i.toLowerCase()))
@@ -780,7 +782,7 @@
 
     // На вкладке «Профиль» заполняем блок интересов текущими интересами человека
     if ($('#interests-editor')) {
-      myInterests = user.interests.filter(Boolean);
+      myInterests = (user.interests || []).filter(Boolean);
       renderInterests();
     }
   }
