@@ -205,8 +205,8 @@ const MOCK_DATA = {
     },
     {
       "id": 14,
-      "name": "Евгений Козлов",
-      "email": "EvgeniyKozlov@oatk.ru",
+      "name": "Евгений Шаров",
+      "email": "EvgeniySharov@oatk.ru",
       "avatar": "images/EvgeniyAvatar.jpg",
       "group": "Э1032",
       "direction": "Экономика и бухгалтерский учёт",
@@ -270,8 +270,8 @@ const MOCK_DATA = {
     },
     {
       "id": 19,
-      "name": "Ольга Сидорова",
-      "email": "OlgaSidorova@oatk.ru",
+      "name": "Полина Игнатова",
+      "email": "PolinaIgnatova@oatk.ru",
       "avatar": "images/OlgaAvatar.jpg",
       "group": "ИСП343",
       "direction": "Информационные системы и программирование",
