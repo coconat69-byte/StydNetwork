@@ -13,6 +13,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
+	"time"
 )
 
 // frontDir — папка с сайтом (относительно папки back, откуда запускается сервер).
@@ -24,7 +26,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// ── API ── route(true, ...) — нужен вход, route(false, ...) — можно без входа
+	// ── API ──
+	// route(false, ...) — можно без входа (только сам вход),
+	// route(true, ...)  — нужен вход, иначе ответ 401 «Требуется вход».
 	mux.HandleFunc("POST /api/login", route(false, login))
 	mux.HandleFunc("POST /api/logout", route(true, logout))
 	mux.HandleFunc("GET /api/me", route(true, me))
@@ -47,8 +51,9 @@ func main() {
 	mux.HandleFunc("POST /api/admin/reports/{id}/dismiss", route(true, adminOnly(dismissReport)))
 	mux.HandleFunc("POST /api/admin/users/{id}/block", route(true, adminOnly(blockUser)))
 
-	// ── Сайт ── отдаём только нужные папки, чтобы нельзя было скачать back/ с базой
-	files := http.FileServer(http.Dir(frontDir))
+	// ── Сайт ──
+	// Отдаём только нужные папки. Папку back/ (там код и файл базы) скачать нельзя.
+	files := noFolderList(http.FileServer(http.Dir(frontDir)))
 	mux.Handle("GET /css/", files)
 	mux.Handle("GET /js/", files)
 	mux.Handle("GET /images/", files)
@@ -56,13 +61,29 @@ func main() {
 		http.ServeFile(w, r, frontDir+"/index.html")
 	})
 
+	// Настраиваем сервер с тайм-аутами: если кто-то будет слать запрос очень медленно
+	// (по байту в минуту), сервер не будет ждать его вечно и тратить на это память.
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           securityHeaders(allowOtherSites(mux)),
+		ReadHeaderTimeout: 5 * time.Second,  // на заголовки запроса
+		ReadTimeout:       10 * time.Second, // на весь запрос
+		WriteTimeout:      10 * time.Second, // на ответ
+		IdleTimeout:       60 * time.Second, // сколько держать открытым соединение без запросов
+	}
+
 	log.Println("СтудСеть запущена: http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", allowOtherSites(mux)))
+	log.Fatal(server.ListenAndServe())
 }
 
 // allowOtherSites разрешает запросы к API со страниц, открытых не этим сервером
 // (Live Server на localhost:5500, index.html двойным щелчком). Без этих заголовков
 // браузер блокирует такие запросы (ошибка «CORS policy»).
+//
+// Почему разрешить всем («*») здесь не опасно: вход у нас не через cookie,
+// а через токен в заголовке Authorization. Чужой сайт этот токен не знает
+// (он лежит в sessionStorage нашей страницы), поэтому от имени пользователя
+// ничего сделать не сможет.
 func allowOtherSites(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -71,6 +92,59 @@ func allowOtherSites(next http.Handler) http.Handler {
 		// Перед POST браузер сначала спрашивает разрешение запросом OPTIONS — просто отвечаем «можно»
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// contentSecurityPolicy — список того, откуда странице можно загружать скрипты, стили,
+// картинки и куда можно отправлять запросы. Это вторая линия защиты от XSS:
+// даже если злоумышленник как-то вставит на страницу <script> или onerror="...",
+// браузер его не выполнит — разрешены только скрипты из наших файлов js/.
+//
+//	default-src 'self'      — по умолчанию всё только с нашего сервера;
+//	script-src 'self'       — скрипты только из наших файлов (встроенные запрещены);
+//	style-src ... fonts...  — стили наши + стили шрифта Inter от Google;
+//	font-src fonts.gstatic  — сами файлы шрифта;
+//	img-src 'self'          — картинки только наши (папка images);
+//	object-src 'none'       — никаких <object> и <embed>;
+//	base-uri 'none'         — нельзя подменить адрес страницы тегом <base>;
+//	frame-ancestors 'none'  — наш сайт нельзя встроить в чужую страницу через <iframe>.
+const contentSecurityPolicy = "default-src 'self'; " +
+	"script-src 'self'; " +
+	"style-src 'self' https://fonts.googleapis.com; " +
+	"font-src https://fonts.gstatic.com; " +
+	"img-src 'self'; " +
+	"connect-src 'self'; " +
+	"object-src 'none'; " +
+	"base-uri 'none'; " +
+	"form-action 'self'; " +
+	"frame-ancestors 'none'"
+
+// securityHeaders добавляет к каждому ответу заголовки, которые включают
+// встроенную защиту браузера.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+		// Браузер не будет «угадывать» тип файла: JSON останется JSON-ом,
+		// а не превратится в HTML со скриптами внутри
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Запрет встраивать сайт в <iframe> (защита от «кликджекинга»), для старых браузеров
+		w.Header().Set("X-Frame-Options", "DENY")
+		// При переходе по ссылке на другой сайт не сообщать ему полный адрес нашей страницы
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// noFolderList запрещает смотреть список файлов в папке.
+// Без этого по адресу /images/ сервер показал бы все файлы, что там лежат.
+// Адрес папки всегда заканчивается на «/» — такие запросы отвечаем «не найдено».
+func noFolderList(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

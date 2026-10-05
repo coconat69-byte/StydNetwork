@@ -1,1 +1,6 @@
 back/studnet.db
+
+# Собранная программа сервера (go build) — в репозиторий не кладём
+back/myapp
+back/studnet
+back/*.exe

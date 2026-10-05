@@ -4,24 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1440">
   <title>СтудСеть — соцсеть колледжа</title>
-  <script>
-    // Этот скрипт стоит в самом верху, ещё до стилей и отрисовки страницы.
-    // 1) Тема: берём светлую или тёмную из localStorage, чтобы не мигало.
-    // 2) Вход: если в этой вкладке уже входили, сразу ставим класс logged-in.
-    //    Токен лежит в sessionStorage: он живёт при обновлении страницы,
-    //    но пропадает, если вкладку закрыть — тогда снова нужен код доступа.
-    document.documentElement.dataset.theme = localStorage.getItem('studnet-theme') || 'light';
-    if (sessionStorage.getItem('studnet-token')) {
-      document.documentElement.classList.add('logged-in');
-    }
-  </script>
-  <!-- Эти правила здесь, а не в css/, чтобы экран входа не мелькал при обновлении.
-       Пока грузятся файлы стилей, браузер уже знает: показать форму или приложение. -->
-  <style>
-    .app-shell { display: none; }
-    html.logged-in #screen-auth { display: none !important; }
-    html.logged-in .app-shell { display: block; }
-  </style>
+  <link rel="icon" href="images/StydNetwork.ico">
+  <!-- Ставит тему и класс logged-in ещё до отрисовки, чтобы ничего не мигало (подробно — в самом файле) -->
+  <script src="js/theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -123,7 +108,7 @@
                   Канал — только чтение. Писать могут преподаватели.
                 </div>
                 <form class="chat-input__form" id="chat-form">
-                  <input type="text" id="message-input" placeholder="Написать сообщение…" autocomplete="off">
+                  <input type="text" id="message-input" placeholder="Написать сообщение…" autocomplete="off" maxlength="2000">
                   <button class="btn btn--primary btn--icon" title="Отправить">
                     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                   </button>

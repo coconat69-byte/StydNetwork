@@ -43,10 +43,11 @@ CREATE TABLE access_codes (
   userId INTEGER NOT NULL REFERENCES users(id)
 );
 
--- Сессии: какой токен какому пользователю выдан при входе
+-- Сессии: какой токен какому пользователю выдан при входе и до какого времени он действует
 CREATE TABLE sessions (
-  token  TEXT PRIMARY KEY,
-  userId INTEGER NOT NULL REFERENCES users(id)
+  token     TEXT PRIMARY KEY,
+  userId    INTEGER NOT NULL REFERENCES users(id),
+  expiresAt INTEGER NOT NULL            -- когда токен перестанет работать (секунды с 1970 года, «unix-время»)
 );
 
 -- Типы чатов: подпись и можно ли писать студентам

@@ -25,7 +25,7 @@ var schemaSQL string
 
 // schemaVersion — версия schema.sql. Хранится в самой базе (PRAGMA user_version).
 // Поменяли schema.sql — увеличьте число: сервер увидит старую базу и пересоздаст её.
-const schemaVersion = 6
+const schemaVersion = 7
 
 // db — подключение к базе, общее для всего сервера.
 var db *sql.DB
@@ -76,7 +76,12 @@ func createDB() error {
 	if err != nil {
 		return err
 	}
-	raw = raw[bytes.IndexByte(raw, '{') : bytes.LastIndexByte(raw, '}')+1]
+	start := bytes.IndexByte(raw, '{')
+	end := bytes.LastIndexByte(raw, '}')
+	if start < 0 || end < start {
+		return fmt.Errorf("в js/data.js не найден объект MOCK_DATA")
+	}
+	raw = raw[start : end+1]
 
 	var data struct {
 		AccessCodes  map[string]int
@@ -136,7 +141,8 @@ func createDB() error {
 	}
 	for _, club := range data.Clubs {
 		// Участников храним в отдельной таблице club_members
-		for _, userID := range club["memberIds"].([]any) {
+		memberIDs, _ := club["memberIds"].([]any) // если поля нет — будет пустой список
+		for _, userID := range memberIDs {
 			add("club_members", map[string]any{"clubId": club["id"], "userId": userID})
 		}
 		delete(club, "memberIds")
@@ -167,22 +173,51 @@ func createDB() error {
 	return tx.Commit()
 }
 
+// isSafeName — состоит ли имя таблицы или колонки только из латинских букв и «_».
+// Имена таблиц и колонок нельзя передать через «?» (так передаются только значения),
+// поэтому в insert они вклеиваются в текст запроса. Чтобы туда случайно не попало
+// что-то лишнее (кавычка, пробел, точка с запятой), сначала проверяем имя этой функцией.
+func isSafeName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, ch := range name {
+		isLetter := (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+		if !isLetter && ch != '_' {
+			return false
+		}
+	}
+	return true
+}
+
 // insert добавляет в таблицу строку: имена полей = имена колонок.
+// Например, insert(tx, "clubs", {"id": 1, "name": "IT"}) выполнит
+// INSERT INTO clubs ("id", "name") VALUES (?, ?) со значениями 1 и "IT".
 // Списки и объекты (интересы, реакции) сохраняются как JSON-текст.
 func insert(tx *sql.Tx, table string, fields map[string]any) error {
-	var columns, marks []string
-	var values []any
+	if !isSafeName(table) {
+		return fmt.Errorf("странное имя таблицы: %q", table)
+	}
+
+	var columns []string // имена колонок: "id", "name"
+	var marks []string   // столько же знаков ?
+	var values []any     // значения — их база подставит вместо знаков ?
 	for column, value := range fields {
+		if !isSafeName(column) {
+			return fmt.Errorf("странное имя колонки: %q", column)
+		}
+		// Список или объект превращаем в JSON-текст
 		switch value.(type) {
 		case []any, map[string]any:
 			text, _ := json.Marshal(value)
 			value = string(text)
 		}
-		columns = append(columns, `"`+column+`"`)
+		columns = append(columns, `"`+column+`"`) // кавычки — потому что колонка group совпадает со словом SQL
 		marks = append(marks, "?")
 		values = append(values, value)
 	}
-	q := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(columns, ", "), strings.Join(marks, ", "))
+
+	q := "INSERT INTO " + table + " (" + strings.Join(columns, ", ") + ") VALUES (" + strings.Join(marks, ", ") + ")"
 	_, err := tx.Exec(q, values...)
 	return err
 }

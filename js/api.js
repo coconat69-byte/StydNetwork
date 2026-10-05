@@ -24,26 +24,36 @@ var API = {
   },
 
   // Один запрос к серверу. Если body есть — это POST, иначе GET.
+  // Данные отправляем как JSON (JSON.stringify), поэтому кавычки и спецсимволы
+  // в тексте сообщений не ломают запрос.
   request: async function (path, body) {
     var res;
-    var data;
     try {
       res = await fetch(this.URL + path, {
         method: body ? 'POST' : 'GET',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + sessionStorage.getItem(this.TOKEN_KEY),
+          Authorization: 'Bearer ' + (sessionStorage.getItem(this.TOKEN_KEY) || ''),
         },
         body: body ? JSON.stringify(body) : undefined,
       });
-      data = await res.json();
     } catch (e) {
+      // Сюда попадаем, только если сервер вообще не ответил (не запущен)
       var err = new Error('Нет связи с сервером');
       err.offline = true;
       throw err;
     }
+
+    // Сервер ответил. Если ответ почему-то не JSON (например, страница «404 not found»),
+    // это ошибка сервера, а не «сервера нет» — поэтому в режим без сервера не переходим
+    var data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      data = {};
+    }
     if (!res.ok) {
-      throw new Error(data.error);
+      throw new Error(data.error || 'Ошибка сервера (код ' + res.status + ')');
     }
     return data;
   },
@@ -65,10 +75,12 @@ var API = {
     return fromLocal();
   },
 
+  // Есть ли токен входа в этой вкладке
   hasToken: function () {
     return !!sessionStorage.getItem(this.TOKEN_KEY);
   },
 
+  // Вход по коду доступа. Запоминаем токен и возвращаем пользователя
   login: async function (code) {
     var result = await this.call(
       function () { return API.request('/login', { code: code }); },
@@ -78,6 +90,7 @@ var API = {
     return result.user;
   },
 
+  // Выход: сообщаем серверу и стираем токен
   logout: async function () {
     try {
       await this.call(
@@ -90,6 +103,7 @@ var API = {
     sessionStorage.removeItem(this.TOKEN_KEY);
   },
 
+  // Кто я (проверка токена при обновлении страницы)
   me: function () {
     return this.call(
       function () { return API.request('/me'); },
@@ -97,6 +111,7 @@ var API = {
     );
   },
 
+  // Сохранить свой профиль: {name, email, bio, interests}
   updateMe: function (fields) {
     return this.call(
       function () { return API.request('/me', fields); },
@@ -104,6 +119,7 @@ var API = {
     );
   },
 
+  // Включить или выключить одну настройку
   saveSetting: function (key, value) {
     return this.call(
       function () { return API.request('/settings', { key: key, value: value }); },
@@ -111,6 +127,7 @@ var API = {
     );
   },
 
+  // Все данные сайта одним запросом: пользователи, чаты, клубы…
   data: function () {
     return this.call(
       function () { return API.request('/data'); },
@@ -118,6 +135,7 @@ var API = {
     );
   },
 
+  // Сообщения чата
   messages: function (chatId) {
     return this.call(
       function () { return API.request('/chats/' + chatId + '/messages'); },
@@ -125,6 +143,7 @@ var API = {
     );
   },
 
+  // Отметить чат прочитанным
   markRead: function (chatId) {
     return this.call(
       function () { return API.request('/chats/' + chatId + '/read', {}); },
@@ -132,6 +151,7 @@ var API = {
     );
   },
 
+  // Отправить сообщение в чат
   sendMessage: function (chatId, text) {
     return this.call(
       function () { return API.request('/chats/' + chatId + '/messages', { text: text }); },
@@ -139,6 +159,7 @@ var API = {
     );
   },
 
+  // Личный чат с человеком (создаётся, если его ещё нет)
   openDm: function (userId) {
     return this.call(
       function () { return API.request('/dm', { userId: userId }); },
@@ -146,6 +167,7 @@ var API = {
     );
   },
 
+  // Вступить в клуб или выйти из него
   toggleClub: function (clubId) {
     return this.call(
       function () { return API.request('/clubs/' + clubId + '/toggle', {}); },
@@ -153,6 +175,7 @@ var API = {
     );
   },
 
+  // Сообщения чата клуба
   clubMessages: function (clubId) {
     return this.call(
       function () { return API.request('/clubs/' + clubId + '/messages'); },
@@ -160,6 +183,7 @@ var API = {
     );
   },
 
+  // Написать в чат клуба
   sendClubMessage: function (clubId, text) {
     return this.call(
       function () { return API.request('/clubs/' + clubId + '/messages', { text: text }); },
@@ -167,6 +191,7 @@ var API = {
     );
   },
 
+  // Админ: цифры для «Обзора»
   adminStats: function () {
     return this.call(
       function () { return API.request('/admin/stats'); },
@@ -174,6 +199,7 @@ var API = {
     );
   },
 
+  // Админ: создать канал {name, description}
   createChannel: function (fields) {
     return this.call(
       function () { return API.request('/admin/channels', fields); },
@@ -181,6 +207,7 @@ var API = {
     );
   },
 
+  // Админ: изменить канал
   updateChannel: function (chatId, fields) {
     return this.call(
       function () { return API.request('/admin/channels/' + chatId, fields); },
@@ -188,6 +215,7 @@ var API = {
     );
   },
 
+  // Админ: жалобы, новые сверху
   reports: function () {
     return this.call(
       function () { return API.request('/admin/reports'); },
@@ -199,6 +227,7 @@ var API = {
     );
   },
 
+  // Админ: отклонить жалобу
   dismissReport: function (reportId) {
     return this.call(
       function () { return API.request('/admin/reports/' + reportId + '/dismiss', {}); },
@@ -206,6 +235,7 @@ var API = {
     );
   },
 
+  // Админ: заблокировать (blocked = true) или разблокировать человека
   blockUser: function (userId, blocked) {
     return this.call(
       function () { return API.request('/admin/users/' + userId + '/block', { blocked: blocked }); },
@@ -219,8 +249,14 @@ var API = {
  * Нужен, когда go run . не запущен.
  */
 var LOCAL = {
+  // Вход: ищем код в MOCK_DATA.accessCodes. Токен без сервера — просто «local-<id>»
   login: function (code) {
-    var id = MOCK_DATA.accessCodes[code.trim()];
+    code = code.trim();
+    // hasOwnProperty — чтобы код вроде «constructor» не нашёл встроенное свойство объекта
+    if (!Object.prototype.hasOwnProperty.call(MOCK_DATA.accessCodes, code)) {
+      throw new Error('Неверный код доступа. Обратитесь в IT-отдел колледжа.');
+    }
+    var id = MOCK_DATA.accessCodes[code];
     var user = findInList(MOCK_DATA.users, id);
     if (!user) {
       throw new Error('Неверный код доступа. Обратитесь в IT-отдел колледжа.');
@@ -232,6 +268,7 @@ var LOCAL = {
     return { token: 'local-' + user.id, user: user };
   },
 
+  // Выход: ставим «не в сети»
   logout: function () {
     LOCAL.me().online = false;
   },
@@ -251,6 +288,7 @@ var LOCAL = {
     return user;
   },
 
+  // Сохранить свой профиль (те же проверки имени, что и на сервере)
   updateMe: function (fields) {
     var name = (fields.name || '').trim();
     if (!name) {
@@ -264,14 +302,21 @@ var LOCAL = {
     return me;
   },
 
+  // Менять можно только настройки из списка — как и на сервере.
+  // Иначе можно было бы «сохранить настройку» isAdmin и стать администратором
   saveSetting: function (key, value) {
-    LOCAL.me()[key] = value;
+    var allowed = ['notifyUnread', 'notifyChannels', 'notifyMentions', 'compact', 'showOnline', 'showGroup', 'allowMessages'];
+    if (allowed.indexOf(key) === -1) {
+      throw new Error('Нет такой настройки');
+    }
+    LOCAL.me()[key] = Boolean(value);
     return { ok: true };
   },
 
   // Запоминаем, до какого сообщения человек дочитал чат
   reads: {},
 
+  // Все данные — как ответ сервера на /api/data
   data: function () {
     var me = LOCAL.me();
     var myId = me.id;
@@ -318,6 +363,7 @@ var LOCAL = {
     return Object.assign({}, MOCK_DATA, { users: users, chats: chats });
   },
 
+  // Отметить чат прочитанным: запоминаем самый большой id сообщения в нём
   markRead: function (chatId) {
     var msgs = MOCK_DATA.messages[chatId] || [];
     var maxId = 0;
@@ -329,6 +375,7 @@ var LOCAL = {
     return { ok: true };
   },
 
+  // Отправить сообщение (в каналы — только преподаватели)
   sendMessage: function (chatId, text) {
     var chat = findInList(MOCK_DATA.chats, chatId);
     var user = LOCAL.me();
@@ -349,6 +396,7 @@ var LOCAL = {
     return { ok: true };
   },
 
+  // Найти личный чат с человеком или создать новый
   openDm: function (userId) {
     var me = LOCAL.me().id;
     var chat = null;
@@ -385,6 +433,7 @@ var LOCAL = {
     return chat;
   },
 
+  // Вступить в клуб или выйти: добавляем/убираем себя из memberIds
   toggleClub: function (clubId) {
     var club = findInList(MOCK_DATA.clubs, clubId);
     var me = LOCAL.me().id;
@@ -399,6 +448,7 @@ var LOCAL = {
     return { memberIds: ids };
   },
 
+  // Написать в чат клуба (только участникам)
   sendClubMessage: function (clubId, text) {
     var user = LOCAL.me();
     var club = findInList(MOCK_DATA.clubs, clubId);
@@ -418,6 +468,7 @@ var LOCAL = {
     return { ok: true };
   },
 
+  // Цифры для «Обзора» в админ-панели
   adminStats: function () {
     var online = 0;
     var i;
@@ -432,6 +483,7 @@ var LOCAL = {
     };
   },
 
+  // Создать канал
   createChannel: function (fields) {
     var name = (fields.name || '').trim();
     if (!name) {
@@ -452,6 +504,7 @@ var LOCAL = {
     return chat;
   },
 
+  // Изменить название и описание канала
   updateChannel: function (chatId, fields) {
     var name = (fields.name || '').trim();
     if (!name) {
@@ -463,6 +516,7 @@ var LOCAL = {
     return chat;
   },
 
+  // Отклонить жалобу: оставляем все жалобы, кроме этой
   dismissReport: function (reportId) {
     var next = [];
     var i;
@@ -475,6 +529,7 @@ var LOCAL = {
     return { ok: true };
   },
 
+  // Заблокировать/разблокировать. При блокировке убираем и жалобы на человека
   blockUser: function (userId, blocked) {
     var user = findInList(MOCK_DATA.users, userId);
     if (user.isAdmin) {
