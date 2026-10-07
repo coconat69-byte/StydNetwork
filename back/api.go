@@ -857,7 +857,7 @@ func blockUser(w http.ResponseWriter, r *http.Request, _ map[string]any) error {
 	}
 
 	// Заблокировали — выкидываем с сайта, закрываем жалобы и ставим «не в сети»
-	disconnect(target["id"]) // и обрываем его поток событий, чтобы новые сообщения ему больше не приходили
+	disconnect(target["id"]) // и сразу отвечаем на его ждущий запрос /api/events — новые сообщения ему больше не придут
 	queries := []string{
 		"DELETE FROM sessions WHERE userId = ?",
 		"DELETE FROM reports WHERE userId = ?",

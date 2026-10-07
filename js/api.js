@@ -245,62 +245,69 @@ var API = {
     );
   },
 
-  // Мгновенные сообщения: держим открытым поток GET /api/events (см. back/events.go)
-  // и для каждого события вызываем onEvent({type: 'message' | 'club', ...}).
-  // Связь оборвалась — подключаемся снова через 3 секунды, а после переподключения
-  // вызываем onEvent({type: 'resync'}): за время обрыва могли прийти сообщения.
+  // Мгновенные сообщения — «долгий опрос» (см. back/events.go).
+  // Снова и снова спрашиваем сервер GET /api/events?after=<курсор> — «что нового?».
+  // Сервер держит вопрос до 25 секунд и отвечает, как только кто-то напишет сообщение.
+  // Для каждого события вызываем onEvent({type: 'message' | 'club', ...}).
+  // onEvent({type: 'resync'}) — «перечитай всё»: сервер перезапускали или связь
+  // пропадала надолго, и часть событий могла потеряться.
   //
-  // Используем fetch, а не встроенный EventSource: EventSource не умеет
-  // отправлять заголовок Authorization, и токен пришлось бы класть в адрес.
-  // Без сервера (data.js) других людей нет, поэтому и слушать нечего.
+  // Без сервера (data.js) других людей нет — слушать некого, поэтому сразу выходим.
   listen: async function (onEvent) {
-    var connectedBefore = false;
+    var after = null; // курсор: до какого события мы уже всё получили (null — ещё не спрашивали)
     while (!this.offline && this.hasToken()) {
+      var res = null;
       try {
-        var res = await fetch(this.URL + '/events', {
+        res = await fetch(this.URL + '/events' + (after === null ? '' : '?after=' + encodeURIComponent(after)), {
           headers: { Authorization: 'Bearer ' + sessionStorage.getItem(this.TOKEN_KEY) },
+          cache: 'no-store',
         });
-        if (res.status === 401) {
-          return; // вход больше не действует
-        }
-        if (res.ok && res.body) {
-          if (connectedBefore) {
-            onEvent({ type: 'resync' });
-          }
-          connectedBefore = true;
-          await this.readEvents(res.body, onEvent);
-        }
       } catch (e) {
-        // нет связи — попробуем ещё раз ниже
+        res = null; // нет связи
       }
-      await new Promise(function (resolve) { setTimeout(resolve, 3000); });
+
+      if (res && res.status === 401) {
+        return; // вход больше не действует (вышли или заблокировали)
+      }
+
+      if (res && res.status === 404) {
+        // Сервер старый — /api/events у него нет. Тогда просто обновляемся раз в 3 секунды
+        onEvent({ type: 'resync' });
+        await this.sleep(3000);
+        continue;
+      }
+
+      var data = null;
+      if (res && res.ok) {
+        try {
+          data = await res.json();
+        } catch (e) {
+          data = null;
+        }
+      }
+      if (!data) {
+        await this.sleep(3000); // нет связи или ошибка сервера — пробуем ещё раз чуть позже
+        continue;
+      }
+
+      if (data.resync && after !== null) {
+        onEvent({ type: 'resync' });
+      }
+      after = data.cursor;
+      (data.events || []).forEach(function (event) {
+        try {
+          onEvent(event);
+        } catch (e) {
+          console.error(e); // ошибка в одном событии не должна остановить приём остальных
+        }
+      });
+      // и сразу задаём следующий вопрос
     }
   },
 
-  // Читаем поток по кусочкам. События разделены пустой строкой, нужная строка начинается с «data: »
-  readEvents: async function (body, onEvent) {
-    var reader = body.getReader();
-    var decoder = new TextDecoder();
-    var buffer = '';
-    while (true) {
-      var chunk = await reader.read();
-      if (chunk.done) {
-        return;
-      }
-      buffer += decoder.decode(chunk.value, { stream: true });
-      var blocks = buffer.split('\n\n');
-      buffer = blocks.pop(); // последний кусок может быть недописан — ждём продолжения
-      blocks.forEach(function (block) {
-        if (block.indexOf('data: ') !== 0) {
-          return; // «: ping» и прочие комментарии
-        }
-        try {
-          onEvent(JSON.parse(block.slice(6)));
-        } catch (e) {
-          console.error(e);
-        }
-      });
-    }
+  // Подождать ms миллисекунд: await API.sleep(3000)
+  sleep: function (ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
   },
 
   // Админ: цифры для «Обзора»
