@@ -496,6 +496,19 @@ tr:last-child td {
   gap: 8px;
 }
 
+/* Телефон: текст и авторы друг под другом */
+@media (max-width: 768px) {
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px 16px;
+  }
+
+  .people-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .site-footer__label {
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -525,6 +538,19 @@ tr:last-child td {
   background: var(--accent-gradient);
   color: #fff;
   font-size: 0.85rem;
+}
+
+/* Плашка под шапкой «Сервер не найден» (режим без сервера, см. js/api.js) */
+.offline-banner {
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.offline-banner code {
+  font-size: 0.8rem;
 }
 
 /* Надпись «✓ Изменения сохранены» рядом с кнопкой в настройках */

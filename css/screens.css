@@ -146,10 +146,13 @@ html.logged-in #screen-auth {
 
 /* ════════ Чаты ════════ */
 
-/* Три колонки на всю высоту окна: список, переписка, информация */
+/* Три колонки на всю высоту окна: список, переписка, информация.
+   minmax(0, 1fr) у строки — чтобы длинная переписка не растягивала сетку вниз
+   (иначе сообщения вылезают за экран и наезжают на футер), а прокручивалась внутри. */
 .chat-layout {
   display: grid;
   grid-template-columns: 320px 1fr 300px;
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100vh - var(--topbar-h));
 }
 
@@ -261,21 +264,38 @@ html.logged-in #screen-auth {
   margin-top: 4px;
 }
 
-/* Центральная колонка: шапка чата, сообщения, поле ввода */
+/* Центральная колонка: шапка чата, сообщения, поле ввода.
+   min-height: 0 — колонка не выше окна, прокручивается только лента сообщений */
 .chat-main {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
 }
 
+/* Кнопка «← к списку чатов» нужна только на телефоне (см. конец файла) */
+.chat-header__back {
+  display: none;
+}
+
+.chat-header__text {
+  min-width: 0;
+}
+
 .chat-header h2 {
   font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-header__meta {
@@ -793,4 +813,298 @@ html.logged-in #screen-auth {
 .actions {
   display: flex;
   gap: 8px;
+}
+
+/* ════════ Планшет и телефон ════════ */
+
+/* Планшет и маленький ноутбук: правая панель с информацией о чате не помещается — прячем */
+@media (max-width: 1100px) {
+  .chat-layout {
+    grid-template-columns: 280px 1fr;
+  }
+
+  .chat-info {
+    display: none;
+  }
+}
+
+/* Телефон */
+@media (max-width: 768px) {
+  :root {
+    --topbar-h: 56px;
+    --tabbar-h: 60px; /* нижнее меню «Чаты / Поиск / Клубы» */
+  }
+
+  /* Поля не мельче 16px — иначе iPhone приближает страницу при вводе */
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  /* Нижнее меню закрывает низ страницы — оставляем под ним место */
+  html.logged-in body {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  }
+
+  .screen {
+    min-height: calc(100vh - var(--topbar-h) - var(--tabbar-h));
+  }
+
+  /* Экран входа: одна колонка, описание сверху */
+  #screen-auth {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    padding: 32px 20px;
+  }
+
+  .auth-brand__features {
+    margin-top: 20px;
+  }
+
+  .auth-panel {
+    padding: 28px 20px;
+  }
+
+  /* ── Шапка: значок логотипа, поиск, кнопки. Разделы — в нижнем меню ── */
+  .topbar {
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .topbar .logo > span:last-child {
+    display: none; /* вместо «СтудСеть» остаётся только значок «С» */
+  }
+
+  .topbar__search {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    padding: 6px 10px;
+  }
+
+  .topbar__search input {
+    min-width: 0;
+  }
+
+  .topbar__right {
+    gap: 2px;
+    margin-left: 0;
+  }
+
+  #admin-link {
+    padding: 6px 8px;
+  }
+
+  .topnav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    padding: 6px 8px env(safe-area-inset-bottom);
+    gap: 6px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .topnav__item {
+    flex: 1;
+  }
+
+  /* ── Чаты: на экране либо список, либо переписка ── */
+  .chat-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100vh - var(--topbar-h) - var(--tabbar-h));
+    height: calc(100dvh - var(--topbar-h) - var(--tabbar-h) - env(safe-area-inset-bottom)); /* dvh учитывает панели браузера */
+  }
+
+  .chat-sidebar {
+    border-right: none;
+  }
+
+  .chat-main {
+    display: none;
+  }
+
+  .chat-layout.is-chat-open .chat-sidebar {
+    display: none;
+  }
+
+  .chat-layout.is-chat-open .chat-main {
+    display: flex;
+  }
+
+  .chat-header {
+    padding: 8px 12px 8px 4px;
+  }
+
+  .chat-header__back {
+    display: grid;
+  }
+
+  /* Фильтры — одной строкой с прокруткой вбок */
+  .chat-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .chat-filter {
+    flex-shrink: 0;
+  }
+
+  .chat-messages {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .message {
+    max-width: 88%;
+    gap: 8px;
+  }
+
+  .chat-input {
+    padding: 8px 12px;
+  }
+
+  /* ── Профиль ── */
+  .profile-layout {
+    padding: 20px 16px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  /* ── Поиск, настройки, админка: меню сверху, содержимое под ним ── */
+  /* minmax(0, 1fr) — колонка не шире экрана, даже если внутри длинная строка
+     (выпадающий список направлений, меню с прокруткой вбок) */
+  .side-layout {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .side-nav {
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .side-content {
+    padding: 20px 16px;
+  }
+
+  /* Фильтры поиска — в две колонки */
+  #screen-search .side-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 12px;
+  }
+
+  .field select {
+    min-width: 0;
+  }
+
+  #screen-search .side-nav h2,
+  #screen-search .side-nav .checkbox,
+  #screen-search .side-nav .btn {
+    grid-column: 1 / -1;
+  }
+
+  #screen-search .side-nav h2 {
+    margin-bottom: 12px;
+  }
+
+  /* Пункты настроек и админки — строкой с прокруткой вбок */
+  #settings-nav,
+  #admin-nav {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    overflow-x: auto;
+  }
+
+  #settings-nav h2,
+  #admin-nav h2,
+  #admin-nav .badge {
+    display: none;
+  }
+
+  #settings-nav .side-nav__item,
+  #admin-nav .side-nav__item {
+    width: auto;
+    flex-shrink: 0;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .user-cards {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .user-card {
+    padding: 16px 12px;
+  }
+
+  /* ── Клубы ── */
+  .page {
+    padding: 16px;
+  }
+
+  .club-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .club-header {
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .club-header__banner {
+    width: 72px;
+    height: 72px;
+    font-size: 2rem;
+  }
+
+  .club-header__meta {
+    flex-wrap: wrap;
+  }
+
+  .club-chat {
+    max-height: 60vh;
+  }
+
+  .tabs {
+    overflow-x: auto;
+  }
+
+  .tabs button {
+    flex-shrink: 0;
+  }
+
+  /* ── Настройки и админка ── */
+  .settings-row {
+    gap: 12px;
+  }
+
+  .interest-input input {
+    min-width: 0;
+  }
+
+  .theme-picker {
+    flex-wrap: wrap;
+  }
+
+  .admin-form .btn + .btn {
+    margin: 8px 0 0;
+  }
+
+  th, td {
+    padding: 10px 12px;
+  }
 }

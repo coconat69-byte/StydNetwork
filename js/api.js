@@ -12,11 +12,50 @@
 
 var API = {
   TOKEN_KEY: 'studnet-token',
-  offline: false,
+  offline: false,   // true — сервера нет, работаем с data.js (изменения живут до обновления страницы)
+  connected: false, // true — сервер уже хоть раз ответил в этой вкладке
 
-  // Если страницу открыл сам сервер (порт 8080) — короткий адрес.
-  // Если открыли index.html сами — стучимся на localhost:8080.
-  URL: location.port === '8080' ? '/api' : 'http://localhost:8080/api',
+  // Адрес API. Его ищет findServer при первом запросе
+  URL: null,
+  serverSearch: null, // поиск идёт один раз, все первые запросы ждут его вместе
+
+  // Где может быть сервер — по порядку:
+  //  1) там же, откуда открыта страница (её отдал сам сервер: localhost:8080,
+  //     адрес компьютера в сети с телефона, туннель и т.п.);
+  //  2) на том же компьютере, порт 8080 (страница открыта через Live Server —
+  //     в том числе с телефона по адресу вида 192.168.1.5:5500);
+  //  3) localhost:8080 (index.html открыт двойным щелчком).
+  // Раньше всегда брался localhost:8080 — а на телефоне localhost это сам телефон,
+  // сервер не находился, и сайт молча переходил в режим без сервера.
+  serverCandidates: function () {
+    var list = [];
+    if (location.protocol === 'http:' || location.protocol === 'https:') {
+      list.push(location.origin + '/api');
+      list.push(location.protocol + '//' + location.hostname + ':8080/api');
+    }
+    list.push('http://localhost:8080/api');
+    // убираем повторы (например, страница и так открыта на :8080)
+    return list.filter(function (url, i) { return list.indexOf(url) === i; });
+  },
+
+  // Ищем сервер: спрашиваем /api/me по каждому адресу. Наш сервер отвечает JSON-ом
+  // (без входа — {"error": "Требуется вход"}), а Live Server и прочие — HTML-страницей.
+  findServer: async function () {
+    var list = this.serverCandidates();
+    var i;
+    for (i = 0; i < list.length; i++) {
+      try {
+        var res = await fetch(list[i] + '/me');
+        var type = res.headers.get('Content-Type') || '';
+        if (type.indexOf('application/json') === 0) {
+          return list[i];
+        }
+      } catch (e) {
+        // по этому адресу никого — пробуем следующий
+      }
+    }
+    return null;
+  },
 
   // Время в формате «12:05» для сообщений
   now: function () {
@@ -27,6 +66,16 @@ var API = {
   // Данные отправляем как JSON (JSON.stringify), поэтому кавычки и спецсимволы
   // в тексте сообщений не ломают запрос.
   request: async function (path, body) {
+    if (!this.URL) {
+      this.serverSearch = this.serverSearch || this.findServer();
+      this.URL = await this.serverSearch;
+    }
+    if (!this.URL) {
+      var notFound = new Error('Нет связи с сервером');
+      notFound.offline = true;
+      throw notFound;
+    }
+
     var res;
     try {
       res = await fetch(this.URL + path, {
@@ -43,6 +92,8 @@ var API = {
       err.offline = true;
       throw err;
     }
+
+    this.connected = true;
 
     // Сервер ответил. Если ответ почему-то не JSON (например, страница «404 not found»),
     // это ошибка сервера, а не «сервера нет» — поэтому в режим без сервера не переходим
@@ -64,8 +115,11 @@ var API = {
       try {
         return await fromServer();
       } catch (err) {
-        // Если сервер ответил ошибкой (неверный код и т.п.) — показываем её
-        if (!err.offline) {
+        // Если сервер ответил ошибкой (неверный код и т.п.) — показываем её.
+        // Если сервер уже отвечал, а сейчас пропал (перезапускают, пропала сеть) —
+        // тоже показываем ошибку, а не переходим тихо на data.js: иначе сообщение
+        // «отправилось» бы только на экране и исчезло после обновления страницы
+        if (!err.offline || this.connected) {
           throw err;
         }
         this.offline = true;
@@ -189,6 +243,64 @@ var API = {
       function () { return API.request('/clubs/' + clubId + '/messages', { text: text }); },
       function () { return LOCAL.sendClubMessage(clubId, text); }
     );
+  },
+
+  // Мгновенные сообщения: держим открытым поток GET /api/events (см. back/events.go)
+  // и для каждого события вызываем onEvent({type: 'message' | 'club', ...}).
+  // Связь оборвалась — подключаемся снова через 3 секунды, а после переподключения
+  // вызываем onEvent({type: 'resync'}): за время обрыва могли прийти сообщения.
+  //
+  // Используем fetch, а не встроенный EventSource: EventSource не умеет
+  // отправлять заголовок Authorization, и токен пришлось бы класть в адрес.
+  // Без сервера (data.js) других людей нет, поэтому и слушать нечего.
+  listen: async function (onEvent) {
+    var connectedBefore = false;
+    while (!this.offline && this.hasToken()) {
+      try {
+        var res = await fetch(this.URL + '/events', {
+          headers: { Authorization: 'Bearer ' + sessionStorage.getItem(this.TOKEN_KEY) },
+        });
+        if (res.status === 401) {
+          return; // вход больше не действует
+        }
+        if (res.ok && res.body) {
+          if (connectedBefore) {
+            onEvent({ type: 'resync' });
+          }
+          connectedBefore = true;
+          await this.readEvents(res.body, onEvent);
+        }
+      } catch (e) {
+        // нет связи — попробуем ещё раз ниже
+      }
+      await new Promise(function (resolve) { setTimeout(resolve, 3000); });
+    }
+  },
+
+  // Читаем поток по кусочкам. События разделены пустой строкой, нужная строка начинается с «data: »
+  readEvents: async function (body, onEvent) {
+    var reader = body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) {
+        return;
+      }
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var blocks = buffer.split('\n\n');
+      buffer = blocks.pop(); // последний кусок может быть недописан — ждём продолжения
+      blocks.forEach(function (block) {
+        if (block.indexOf('data: ') !== 0) {
+          return; // «: ping» и прочие комментарии
+        }
+        try {
+          onEvent(JSON.parse(block.slice(6)));
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    }
   },
 
   // Админ: цифры для «Обзора»
@@ -323,10 +435,13 @@ var LOCAL = {
     var chats = [];
     var i;
 
-    // Личные чаты показываем только свои
+    // Личные чаты показываем только свои, чаты групп — только студентам (как на сервере)
     for (i = 0; i < MOCK_DATA.chats.length; i++) {
       var chat = MOCK_DATA.chats[i];
       if (chat.type === 'dm' && chat.ownerId !== myId && chat.userId !== myId) {
+        continue;
+      }
+      if (chat.type === 'group' && me.role === 'teacher') {
         continue;
       }
       chats.push(chat);

@@ -42,6 +42,7 @@ func main() {
 	mux.HandleFunc("POST /api/clubs/{id}/toggle", route(true, toggleClub))
 	mux.HandleFunc("GET /api/clubs/{id}/messages", route(true, clubMessages))
 	mux.HandleFunc("POST /api/clubs/{id}/messages", route(true, sendClubMessage))
+	mux.HandleFunc("GET /api/events", route(true, events)) // новые сообщения без обновления страницы (events.go)
 
 	// ── Админ-панель ── adminOnly пускает только администратора
 	mux.HandleFunc("GET /api/admin/stats", route(true, adminOnly(adminStats)))
@@ -63,6 +64,7 @@ func main() {
 
 	// Настраиваем сервер с тайм-аутами: если кто-то будет слать запрос очень медленно
 	// (по байту в минуту), сервер не будет ждать его вечно и тратить на это память.
+	// Исключение — поток событий /api/events: он снимает тайм-ауты сам для себя (см. events.go).
 	server := &http.Server{
 		Addr:              ":8080",
 		Handler:           securityHeaders(allowOtherSites(mux)),

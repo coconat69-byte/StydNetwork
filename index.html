@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1440">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>СтудСеть — соцсеть колледжа</title>
   <link rel="icon" href="images/StydNetwork.ico">
   <!-- Ставит тему и класс logged-in ещё до отрисовки, чтобы ничего не мигало (подробно — в самом файле) -->
@@ -85,6 +85,12 @@
         </div>
       </header>
 
+      <!-- Видна, только если сервер не найден и сайт работает с данными из js/data.js -->
+      <div class="offline-banner" id="offline-banner" hidden>
+        Сервер не найден — сайт работает без него. Сообщения, клубы и настройки сохранятся только до обновления страницы.
+        Запустите сервер (<code>cd back</code>, <code>go run .</code>) и войдите заново.
+      </div>
+
       <main>
         <!-- Чаты: список слева, переписка в центре, информация справа -->
         <section id="screen-main" class="screen">
@@ -97,8 +103,14 @@
 
             <div class="chat-main">
               <header class="chat-header">
-                <h2 id="chat-title">Выберите чат</h2>
-                <span class="chat-header__meta" id="chat-meta"></span>
+                <!-- «Назад к списку» — только на телефоне, где список и переписка не помещаются рядом -->
+                <button class="icon-btn chat-header__back" id="chat-back" title="К списку чатов">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div class="chat-header__text">
+                  <h2 id="chat-title">Выберите чат</h2>
+                  <span class="chat-header__meta" id="chat-meta"></span>
+                </div>
               </header>
               <div class="chat-messages" id="chat-messages"></div>
               <footer class="chat-input">

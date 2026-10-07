@@ -422,16 +422,18 @@ func allData(w http.ResponseWriter, _ *http.Request, user map[string]any) error 
 		}
 	}
 
-	// :me — именованный параметр, в запросе он встречается три раза
+	// :me и :role — именованные параметры, :me в запросе встречается три раза.
+	// Условия WHERE — те же, что в canSeeChat: личные чаты — только двоим, группы — только студентам
 	chats, err := query(`SELECT c.*,
 		(SELECT COUNT(*) FROM messages m
 		  WHERE m.chatId = c.id AND m.userId != :me
 		    AND m.id > COALESCE((SELECT lastReadId FROM chat_reads WHERE chatId = c.id AND userId = :me), 0)
 		) AS unread
 		FROM chats c
-		WHERE c.type != 'dm' OR :me IN (c.ownerId, c.userId)
+		WHERE (c.type != 'dm' OR :me IN (c.ownerId, c.userId))
+		  AND (c.type != 'group' OR :role != 'teacher')
 		ORDER BY c.id`,
-		sql.Named("me", user["id"]))
+		sql.Named("me", user["id"]), sql.Named("role", user["role"]))
 	if err != nil {
 		return err
 	}
@@ -485,11 +487,32 @@ func namesOf(rows []map[string]any) []any {
 
 // ── Чаты ─────────────────────────────────────────────────
 
-// findChat возвращает чат, если пользователю можно в нём быть (личные — только двоим собеседникам).
+// canSeeChat — можно ли пользователю видеть чат:
+//   - личный (dm) — только двоим собеседникам;
+//   - чат группы (group) — только студентам: это место, где группа общается между собой,
+//     поэтому преподаватели его не видят (ни в списке, ни по прямому запросу).
+//
+// chat — строка из таблицы chats (нужны type, ownerId и userId).
+// Те же правила записаны условием WHERE в allData — меняйте вместе.
+func canSeeChat(user, chat map[string]any) bool {
+	switch chat["type"] {
+	case "dm":
+		return user["id"] == chat["ownerId"] || user["id"] == chat["userId"]
+	case "group":
+		return user["role"] != "teacher"
+	}
+	return true
+}
+
+// findChat возвращает чат, если пользователю можно в нём быть (см. canSeeChat).
 // Если чата нет или он чужой — вернёт nil.
 func findChat(user map[string]any, chatID string) (map[string]any, error) {
-	return queryOne(`SELECT c.id, t.readonly FROM chats c JOIN chat_types t ON t.type = c.type
-		WHERE c.id = ? AND (c.type != 'dm' OR ? IN (c.ownerId, c.userId))`, chatID, user["id"])
+	chat, err := queryOne(`SELECT c.id, c.type, c.ownerId, c.userId, t.readonly
+		FROM chats c JOIN chat_types t ON t.type = c.type WHERE c.id = ?`, chatID)
+	if err != nil || chat == nil || !canSeeChat(user, chat) {
+		return nil, err
+	}
+	return chat, nil
 }
 
 // GET /api/chats/{id}/messages — сообщения чата по порядку.
@@ -533,14 +556,23 @@ func sendMessage(w http.ResponseWriter, r *http.Request, user map[string]any) er
 
 	// Сохраняем сообщение и обновляем «последнее сообщение» в списке чатов
 	sentAt := now()
-	if _, err := db.Exec("INSERT INTO messages (chatId, userId, text, time) VALUES (?, ?, ?, ?)",
-		chat["id"], user["id"], text, sentAt); err != nil {
+	res, err := db.Exec("INSERT INTO messages (chatId, userId, text, time) VALUES (?, ?, ?, ?)",
+		chat["id"], user["id"], text, sentAt)
+	if err != nil {
 		return err
 	}
 	if _, err := db.Exec("UPDATE chats SET lastMessage = ?, lastTime = ? WHERE id = ?",
 		text, sentAt, chat["id"]); err != nil {
 		return err
 	}
+
+	// Сразу рассылаем сообщение всем, кто сейчас на сайте и может видеть этот чат (см. events.go)
+	id, _ := res.LastInsertId()
+	publish(map[string]any{
+		"type":    "message",
+		"chatId":  chat["id"],
+		"message": map[string]any{"id": id, "userId": user["id"], "text": text, "time": sentAt, "reactions": []any{}},
+	}, func(listener map[string]any) bool { return canSeeChat(listener, chat) })
 	return ok(w)
 }
 
@@ -687,6 +719,9 @@ func sendClubMessage(w http.ResponseWriter, r *http.Request, user map[string]any
 		clubID, user["id"], text, now()); err != nil {
 		return err
 	}
+
+	// Чат клуба читать могут все — сообщаем всем, кто на сайте (см. events.go)
+	publish(map[string]any{"type": "club", "clubId": clubID}, nil)
 	return ok(w)
 }
 
@@ -822,6 +857,7 @@ func blockUser(w http.ResponseWriter, r *http.Request, _ map[string]any) error {
 	}
 
 	// Заблокировали — выкидываем с сайта, закрываем жалобы и ставим «не в сети»
+	disconnect(target["id"]) // и обрываем его поток событий, чтобы новые сообщения ему больше не приходили
 	queries := []string{
 		"DELETE FROM sessions WHERE userId = ?",
 		"DELETE FROM reports WHERE userId = ?",

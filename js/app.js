@@ -33,6 +33,7 @@
     profileId: null,        // чей профиль открыт
     chatId: null,           // открытый чат
     chatFilter: 'all',      // фильтр над списком чатов
+    chatOpen: false,        // на телефоне: открыта переписка (true) или список чатов (false)
     clubsView: 'all',       // «Все» или «Мои» клубы
     clubId: null,           // открытый клуб
     clubTab: 'members',     // вкладка клуба: members или chat
@@ -112,6 +113,12 @@
   // Прокрутить блок с сообщениями в самый низ (к последнему сообщению)
   function scrollToBottom(element) {
     element.scrollTop = element.scrollHeight;
+  }
+
+  // Прокручен ли блок почти до низа. Если человек поднялся читать старые сообщения,
+  // новое сообщение не должно утаскивать его вниз
+  function nearBottom(element) {
+    return element.scrollHeight - element.scrollTop - element.clientHeight < 80;
   }
 
   // Настройки человека (переключатели на экране «Настройки») и их значения по умолчанию.
@@ -273,6 +280,7 @@
     DATA = await API.data();
 
     $('#my-avatar').src = user.avatar;
+    $('#offline-banner').hidden = !API.offline; // предупреждаем, что изменения не сохранятся
     $('#admin-link').hidden = !user.isAdmin; // админ-панель — только администратору
     if (state.screen === 'admin' && !user.isAdmin) {
       state.screen = 'main';
@@ -298,10 +306,17 @@
     // Открываем чат, который был открыт до обновления страницы, а если его нет — первый
     if (chatById(state.chatId)) {
       openChat(state.chatId);
-    } else if (DATA.chats.length > 0) {
-      openChat(DATA.chats[0].id);
+    } else {
+      state.chatOpen = false; // на телефоне начинаем со списка чатов
+      if (DATA.chats.length > 0) {
+        openChat(DATA.chats[0].id);
+      }
     }
+    showChat(state.chatOpen);
     navigate(state.screen, state.profileId);
+
+    // Новые сообщения приходят сами, без обновления страницы (см. API.listen)
+    API.listen(onServerEvent);
   }
 
   // ════════ Обработчики событий ════════
@@ -339,7 +354,11 @@
       markTab($('#chat-filters'), 'filter', type);
       renderChatList();
     });
-    onClick($('#chat-list'), 'chat', function (id) { openChat(Number(id)); });
+    onClick($('#chat-list'), 'chat', function (id) {
+      openChat(Number(id));
+      showChat(true);
+    });
+    $('#chat-back').addEventListener('click', function () { showChat(false); });
     $('#chat-form').addEventListener('submit', sendMessage);
 
     // ── Поиск: строка в шапке и фильтры слева ──
@@ -525,9 +544,16 @@
   }
 
   // Кнопки-фильтры над списком чатов: «Все», «Канал», «Группа»…
+  // Чаты групп преподавателям не показываются (их не отдаёт сервер), поэтому и фильтра «Группа» у них нет
   function renderChatFilters() {
+    const types = Object.keys(DATA.chatTypes).filter(function (type) {
+      return type !== 'group' || !isTeacher(state.user);
+    });
+    if (state.chatFilter !== 'all' && !types.includes(state.chatFilter)) {
+      state.chatFilter = 'all';
+    }
     let html = '<button class="chat-filter" data-filter="all">Все</button>';
-    Object.keys(DATA.chatTypes).forEach(function (type) {
+    types.forEach(function (type) {
       const label = DATA.chatTypes[type].label;
       html += `<button class="chat-filter" data-filter="${esc(type)}">${esc(label)}</button>`;
     });
@@ -592,8 +618,15 @@
     $('#chat-readonly').hidden = canWrite(chat);
     $('#chat-form').hidden = !canWrite(chat);
 
-    const messages = await API.messages(chatId);
-    if (state.chatId !== chatId) {
+    await loadMessages(chat, true);
+  }
+
+  // Загрузить и нарисовать сообщения чата и панель справа.
+  // toBottom = true — прокрутить к последнему сообщению; иначе прокручиваем,
+  // только если человек и так был внизу (см. nearBottom)
+  async function loadMessages(chat, toBottom) {
+    const messages = await API.messages(chat.id);
+    if (state.chatId !== chat.id) {
       return; // пока грузили, пользователь открыл другой чат
     }
 
@@ -602,13 +635,84 @@
       chat.unread = 0;
       renderChatList();
     }
-    API.markRead(chatId).catch(function () {
+    API.markRead(chat.id).catch(function () {
       // не получилось — не страшно, отметится в следующий раз
     });
 
-    $('#chat-messages').innerHTML = messagesHtml(messages);
-    scrollToBottom($('#chat-messages'));
+    const box = $('#chat-messages');
+    const stick = toBottom || nearBottom(box);
+    box.innerHTML = messagesHtml(messages);
+    if (stick) {
+      scrollToBottom(box);
+    }
     renderChatInfo(chat, messages);
+  }
+
+  // На телефоне видно что-то одно: список чатов или переписка.
+  // Класс is-chat-open на .chat-layout переключает их (см. @media в screens.css)
+  function showChat(open) {
+    state.chatOpen = open;
+    $('.chat-layout').classList.toggle('is-chat-open', open);
+  }
+
+  // ════════ Мгновенные сообщения ════════
+
+  // Событие с сервера (см. API.listen и back/events.go)
+  function onServerEvent(event) {
+    if (event.type === 'message') {
+      onNewMessage(event.chatId, event.message);
+    } else if (event.type === 'club') {
+      onNewClubMessage(Number(event.clubId));
+    } else if (event.type === 'resync') {
+      resync();
+    }
+  }
+
+  // Новое сообщение в чате: открытый чат перерисовываем, у остальных обновляем превью и счётчик
+  function onNewMessage(chatId, msg) {
+    const chat = chatById(chatId);
+    if (!chat) {
+      reloadChats(); // нам впервые написали в личку — такого чата в списке ещё нет
+      return;
+    }
+    chat.lastMessage = msg.text;
+    chat.lastTime = msg.time;
+    if (chatId === state.chatId) {
+      loadMessages(chat, msg.userId === state.user.id);
+    } else if (msg.userId !== state.user.id) {
+      chat.unread = (chat.unread || 0) + 1;
+    }
+    renderChatList();
+  }
+
+  // Новое сообщение в чате клуба: обновляем ленту, если этот чат сейчас открыт
+  function onNewClubMessage(clubId) {
+    const club = clubById(clubId);
+    if (club && state.screen === 'clubs' && state.clubId === clubId && state.clubTab === 'chat') {
+      refreshClubChat(club);
+    }
+  }
+
+  // Заново берём список чатов и людей с сервера (новая личка, или связь пропадала и что-то пропустили)
+  async function reloadChats() {
+    try {
+      const fresh = await API.data();
+      DATA.chats = fresh.chats;
+      DATA.users = fresh.users;
+    } catch (e) {
+      return; // не вышло — список останется прежним
+    }
+    renderChatList();
+  }
+
+  // Связь с сервером восстановилась: подтягиваем всё, что могли пропустить
+  async function resync() {
+    await reloadChats();
+    const chat = chatById(state.chatId);
+    if (chat) {
+      loadMessages(chat, false);
+    }
+    onNewClubMessage(state.clubId);
   }
 
   // Реакции под сообщением: «👍 3  🔥 2»
@@ -739,6 +843,7 @@
     renderChatFilters();
     navigate('main');
     openChat(chat.id);
+    showChat(true);
   }
 
   // ════════ Профиль ════════
@@ -937,6 +1042,21 @@
       <div class="chat-messages club-chat">${messagesHtml(messages)}</div>
       ${inputHtml}`;
     scrollToBottom($('.club-chat'));
+  }
+
+  // Пришло новое сообщение в открытый чат клуба: обновляем только ленту,
+  // чтобы не стереть то, что человек сейчас набирает в поле ввода
+  async function refreshClubChat(club) {
+    const messages = await API.clubMessages(club.id);
+    const box = $('.club-chat');
+    if (!box || state.clubId !== club.id || state.clubTab !== 'chat') {
+      return; // пока грузили, открыли другое
+    }
+    const stick = nearBottom(box);
+    box.innerHTML = messagesHtml(messages);
+    if (stick) {
+      scrollToBottom(box);
+    }
   }
 
   // Вступить в открытый клуб или выйти из него
